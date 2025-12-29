@@ -11,11 +11,23 @@ export default [
             sourceType: 'module',
             globals: {
                 ...globals.browser,
+                // HTMLのonclick等から呼び出されるグローバル関数
+                toggleComplete: 'writable',
+                deleteTask: 'writable',
+                startEdit: 'writable',
+                cancelEdit: 'writable',
+                saveEdit: 'writable',
+                handleEditKeypress: 'writable',
+                handleDragStart: 'writable',
+                handleDragEnd: 'writable',
+                handleDragOver: 'writable',
+                handleDrop: 'writable',
+                handleTaskSelect: 'writable',
             },
         },
         rules: {
             // 未使用変数
-            'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+            'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^(toggleComplete|deleteTask|startEdit|cancelEdit|saveEdit|handleEditKeypress|handleDragStart|handleDragEnd|handleDragOver|handleDrop|handleTaskSelect)$' }],
 
             // 冗長なコード
             'no-extra-semi': 'error',

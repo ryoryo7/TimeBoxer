@@ -15,7 +15,7 @@ const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
 const deleteAllBtn = document.getElementById('deleteAllBtn');
 
 // 選択中のタスクIDセット
-let selectedTaskIds = new Set();
+const selectedTaskIds = new Set();
 
 // 編集中のタスクID
 let editingTaskId = null;
@@ -39,20 +39,20 @@ function setDefaultTargetDate() {
 // イベントリスナーの設定
 function setupEventListeners() {
     addTaskBtn.addEventListener('click', addTask);
-    
-    taskNameInput.addEventListener('keypress', (e) => {
+
+    taskNameInput.addEventListener('keypress', e => {
         if (e.key === 'Enter') addTask();
     });
 
-    priorityInput.addEventListener('keypress', (e) => {
+    priorityInput.addEventListener('keypress', e => {
         if (e.key === 'Enter') addTask();
     });
 
-    estimatedTimeInput.addEventListener('keypress', (e) => {
+    estimatedTimeInput.addEventListener('keypress', e => {
         if (e.key === 'Enter') addTask();
     });
 
-    targetDateInput.addEventListener('keypress', (e) => {
+    targetDateInput.addEventListener('keypress', e => {
         if (e.key === 'Enter') addTask();
     });
 
@@ -81,17 +81,17 @@ function normalizePriorities(tasks) {
     // 未完了タスクを優先順位順にソート
     const incompleteTasks = tasks.filter(t => !t.completed).sort((a, b) => a.priority - b.priority);
     const completedTasks = tasks.filter(t => t.completed).sort((a, b) => a.priority - b.priority);
-    
+
     // 未完了タスクに1から連番を振る
     incompleteTasks.forEach((task, index) => {
         task.priority = index + 1;
     });
-    
+
     // 完了タスクにも続きの連番を振る
     completedTasks.forEach((task, index) => {
         task.priority = incompleteTasks.length + index + 1;
     });
-    
+
     return [...incompleteTasks, ...completedTasks];
 }
 
@@ -99,12 +99,12 @@ function normalizePriorities(tasks) {
 function getNewPriority(tasks, requestedPriority) {
     const incompleteTasks = tasks.filter(t => !t.completed);
     const maxPriority = incompleteTasks.length;
-    
+
     if (requestedPriority === null || requestedPriority === undefined || isNaN(requestedPriority)) {
         // 未指定の場合は最下位
         return maxPriority + 1;
     }
-    
+
     // 指定された優先順位を1以上、最大+1以下に制限
     return Math.max(1, Math.min(requestedPriority, maxPriority + 1));
 }
@@ -113,22 +113,22 @@ function getNewPriority(tasks, requestedPriority) {
 function insertTaskAtPriority(tasks, newTask, priority) {
     const incompleteTasks = tasks.filter(t => !t.completed).sort((a, b) => a.priority - b.priority);
     const completedTasks = tasks.filter(t => t.completed);
-    
+
     // 挿入位置のインデックス（0ベース）
     const insertIndex = priority - 1;
-    
+
     // 新しいタスクを挿入
     incompleteTasks.splice(insertIndex, 0, newTask);
-    
+
     // 優先順位を再採番
     incompleteTasks.forEach((task, index) => {
         task.priority = index + 1;
     });
-    
+
     completedTasks.forEach((task, index) => {
         task.priority = incompleteTasks.length + index + 1;
     });
-    
+
     return [...incompleteTasks, ...completedTasks];
 }
 
@@ -159,7 +159,7 @@ function addTask() {
         estimatedTime: validTime,
         targetDate: targetDate,
         completed: false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
     };
 
     tasks = insertTaskAtPriority(tasks, task, priority);
@@ -234,28 +234,28 @@ function saveEdit(id) {
 
     let tasks = getTasks();
     const task = tasks.find(t => t.id === id);
-    
+
     if (task) {
         const oldPriority = task.priority;
         task.name = name;
         task.estimatedTime = Math.max(1, estimatedTime);
         task.targetDate = targetDate;
-        
+
         // 優先順位が変更された場合
         if (newPriority !== oldPriority) {
             // タスクを一旦削除
             tasks = tasks.filter(t => t.id !== id);
-            
+
             // 新しい優先順位を計算（範囲内に制限）
             const incompleteTasks = tasks.filter(t => !t.completed);
             const maxPriority = incompleteTasks.length + 1;
             const validPriority = Math.max(1, Math.min(newPriority, maxPriority));
             task.priority = validPriority;
-            
+
             // 再挿入
             tasks = insertTaskAtPriority(tasks, task, validPriority);
         }
-        
+
         saveTasks(tasks);
     }
 
@@ -281,7 +281,7 @@ function handleDragStart(e, id) {
 }
 
 // ドラッグ終了
-function handleDragEnd(e) {
+function handleDragEnd(_e) {
     draggedTaskId = null;
     document.querySelectorAll('.task-item').forEach(item => {
         item.classList.remove('dragging', 'drag-over');
@@ -292,7 +292,7 @@ function handleDragEnd(e) {
 function handleDragOver(e, id) {
     e.preventDefault();
     if (draggedTaskId === null || draggedTaskId === id) return;
-    
+
     const taskItem = e.target.closest('.task-item');
     if (taskItem && !taskItem.classList.contains('dragging')) {
         document.querySelectorAll('.task-item').forEach(item => {
@@ -305,26 +305,26 @@ function handleDragOver(e, id) {
 // ドロップ
 function handleDrop(e, targetId) {
     e.preventDefault();
-    
+
     if (draggedTaskId === null || draggedTaskId === targetId) return;
-    
+
     let tasks = getTasks();
     const draggedTask = tasks.find(t => t.id === draggedTaskId);
     const targetTask = tasks.find(t => t.id === targetId);
-    
+
     if (!draggedTask || !targetTask) return;
-    
+
     // 完了タスクはドラッグ対象外
     if (draggedTask.completed || targetTask.completed) return;
-    
+
     // ドラッグしたタスクを削除
     tasks = tasks.filter(t => t.id !== draggedTaskId);
-    
+
     // ターゲットの位置に挿入
     const targetPriority = targetTask.priority;
     draggedTask.priority = targetPriority;
     tasks = insertTaskAtPriority(tasks, draggedTask, targetPriority);
-    
+
     saveTasks(tasks);
     draggedTaskId = null;
     renderTasks();
@@ -436,7 +436,7 @@ function exportToCsv() {
 
     // CSVヘッダー
     const headers = ['タスク名', '優先順位', '想定時間(分)', '対象日', '完了', '作成日'];
-    
+
     // CSVデータ作成
     const rows = tasks.map(task => {
         const completed = task.completed ? '完了' : '未完了';
@@ -448,13 +448,13 @@ function exportToCsv() {
             task.estimatedTime,
             targetDate,
             completed,
-            createdAt
+            createdAt,
         ].join(',');
     });
 
     // BOM付きUTF-8でCSV作成
     const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
-    
+
     // ダウンロード
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -522,13 +522,13 @@ function formatTargetDate(dateString) {
 // 対象日のクラスを取得（過去・今日判定）
 function getTargetDateClass(dateString) {
     if (!dateString) return '';
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const target = new Date(dateString);
     target.setHours(0, 0, 0, 0);
-    
+
     if (target.getTime() === today.getTime()) {
         return 'today';
     } else if (target < today) {
@@ -586,9 +586,11 @@ function escapeHtml(text) {
 function renderTaskRow(task, totalIncompleteTasks) {
     const isSelected = selectedTaskIds.has(task.id);
     const dateClass = task.completed ? '' : getTargetDateClass(task.targetDate);
-    const priorityClass = task.completed ? 'priority-low' : getPriorityClass(task.priority, totalIncompleteTasks);
+    const priorityClass = task.completed
+        ? 'priority-low'
+        : getPriorityClass(task.priority, totalIncompleteTasks);
     const draggable = !task.completed;
-    
+
     return `
         <div class="task-item ${task.completed ? 'completed' : ''} ${isSelected ? 'selected' : ''}"
              data-id="${task.id}"
@@ -630,7 +632,7 @@ function renderTaskRow(task, totalIncompleteTasks) {
 function renderEditingTaskRow(task, totalIncompleteTasks) {
     const isSelected = selectedTaskIds.has(task.id);
     const maxPriority = totalIncompleteTasks;
-    
+
     return `
         <div class="task-item editing ${isSelected ? 'selected' : ''}" data-id="${task.id}">
             <div class="drag-handle"></div>
@@ -684,7 +686,7 @@ function renderEditingTaskRow(task, totalIncompleteTasks) {
 
 // タスクをレンダリング
 function renderTasks() {
-    let tasks = getTasks();
+    const tasks = getTasks();
 
     updateStats(tasks);
 
@@ -727,12 +729,14 @@ function renderTasks() {
 
     const totalIncompleteTasks = tasks.filter(t => !t.completed).length;
 
-    taskContainer.innerHTML = tasks.map(task => {
-        if (task.id === editingTaskId) {
-            return renderEditingTaskRow(task, totalIncompleteTasks);
-        }
-        return renderTaskRow(task, totalIncompleteTasks);
-    }).join('');
+    taskContainer.innerHTML = tasks
+        .map(task => {
+            if (task.id === editingTaskId) {
+                return renderEditingTaskRow(task, totalIncompleteTasks);
+            }
+            return renderTaskRow(task, totalIncompleteTasks);
+        })
+        .join('');
 
     updateSelectAllState();
     updateDeleteSelectedBtn();

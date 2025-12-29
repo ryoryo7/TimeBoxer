@@ -196,7 +196,9 @@ describe('タスク管理アプリ', () => {
             const incomplete = tasks
                 .filter(t => !t.completed)
                 .sort((a, b) => a.priority - b.priority);
-            const completed = tasks.filter(t => t.completed).sort((a, b) => a.priority - b.priority);
+            const completed = tasks
+                .filter(t => t.completed)
+                .sort((a, b) => a.priority - b.priority);
 
             incomplete.forEach((task, i) => {
                 task.priority = i + 1;
