@@ -1,0 +1,26 @@
+{
+    "name": "task-manager",
+    "version": "1.5.0",
+    "description": "シンプルなタスク管理アプリ",
+    "type": "module",
+    "scripts": {
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "lint": "eslint .",
+        "lint:fix": "eslint --fix .",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "check": "npm run format:check && npm run lint",
+        "fix": "npm run format && npm run lint:fix"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.17.0",
+        "@vitest/coverage-v8": "^2.1.8",
+        "eslint": "^9.17.0",
+        "globals": "^15.13.0",
+        "jsdom": "^25.0.1",
+        "prettier": "^3.4.2",
+        "vitest": "^2.1.8"
+    }
+}

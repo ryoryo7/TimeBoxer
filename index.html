@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスク管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📋 タスク管理</h1>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTasks">0</div>
+                <div class="stat-label">総タスク数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="remainingTasks">0</div>
+                <div class="stat-label">未完了</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTime">0分</div>
+                <div class="stat-label">総想定時間</div>
+            </div>
+        </div>
+
+        <div class="task-form">
+            <div class="form-row">
+                <div class="form-group task-name">
+                    <label for="taskName">タスク名</label>
+                    <input type="text" id="taskName" placeholder="タスクを入力...">
+                </div>
+                <div class="form-group">
+                    <label for="priority">優先順位</label>
+                    <input type="number" id="priority" min="1" placeholder="--">
+                </div>
+                <div class="form-group">
+                    <label for="estimatedTime">想定時間(分)</label>
+                    <input type="number" id="estimatedTime" min="1" step="1" value="30" placeholder="30">
+                </div>
+                <div class="form-group">
+                    <label for="targetDate">対象日</label>
+                    <input type="date" id="targetDate">
+                </div>
+                <button class="btn btn-primary" id="addTaskBtn">追加</button>
+            </div>
+            <p class="priority-hint">※ 優先順位は数字が小さいほど優先度が高くなります（未指定で最下位に追加）</p>
+        </div>
+
+        <div class="task-list">
+            <div class="task-header">
+                <div class="header-drag"></div>
+                <div class="header-checkbox">
+                    <input type="checkbox" id="selectAll" title="全選択">
+                </div>
+                <div>優先</div>
+                <div>タスク名</div>
+                <div>想定時間</div>
+                <div>対象日</div>
+                <div>操作</div>
+            </div>
+            <div id="taskContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p>タスクがありません<br>新しいタスクを追加してください</p>
+                </div>
+            </div>
+            <div class="task-toolbar" id="taskToolbar">
+                <button class="btn btn-toolbar btn-export" id="exportCsvBtn">
+                    📥 CSVエクスポート
+                </button>
+                <button class="btn btn-toolbar btn-delete-selected" id="deleteSelectedBtn">
+                    🗑️ 選択削除
+                </button>
+                <button class="btn btn-toolbar btn-delete-all" id="deleteAllBtn">
+                    ⚠️ 全削除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
