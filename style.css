@@ -23,7 +23,7 @@ header {
     text-align: center;
     margin-bottom: 2rem;
     padding: 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #c9171e 0%, #c9171e 100%);
     border-radius: 12px;
     color: white;
 }
@@ -57,7 +57,7 @@ h2 {
 .stat-number {
     font-size: 2rem;
     font-weight: bold;
-    color: #667eea;
+    color: #c9171e;
 }
 
 .stat-label {
@@ -103,8 +103,8 @@ h2 {
 
 .form-group input:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #c9171e;
+    box-shadow: 0 0 0 3px rgba(201, 23, 30, 0.1);
 }
 
 .required {
@@ -112,7 +112,7 @@ h2 {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #c9171e 0%, #c9171e 100%);
     color: white;
     border: none;
     padding: 0.75rem 2rem;
@@ -126,7 +126,7 @@ h2 {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(201, 23, 30, 0.4);
 }
 
 /* ==================== タスクリスト ==================== */
@@ -271,7 +271,7 @@ h2 {
 /* インライン編集 */
 .inline-edit {
     padding: 0.375rem;
-    border: 1px solid #667eea;
+    border: 1px solid #c9171e;
     border-radius: 4px;
     font-size: 0.875rem;
     width: 100%;
@@ -279,7 +279,7 @@ h2 {
 
 .inline-edit:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 0 0 2px rgba(201, 23, 30, 0.2);
 }
 
 .edit-actions {
@@ -553,7 +553,7 @@ h2 {
 
 .log-row .inline-edit {
     padding: 0.25rem;
-    border: 1px solid #667eea;
+    border: 1px solid #c9171e;
     border-radius: 4px;
     font-size: 0.8125rem;
 }
@@ -836,9 +836,9 @@ h2 {
 }
 
 .memo-tab.active {
-    background-color: #667eea;
+    background-color: #c9171e;
     color: white;
-    border-color: #667eea;
+    border-color: #c9171e;
 }
 
 .memo-tab-name {
@@ -851,7 +851,7 @@ h2 {
 .memo-tab-name.editing {
     background: white;
     color: #333;
-    border: 1px solid #667eea;
+    border: 1px solid #c9171e;
     border-radius: 3px;
     padding: 0 0.25rem;
     outline: none;
@@ -907,7 +907,7 @@ h2 {
     width: 100%;
     min-height: 120px;
     padding: 0.75rem;
-    border: 2px solid #667eea;
+    border: 2px solid #c9171e;
     border-radius: 8px;
     font-size: 1rem;
     font-family: inherit;
@@ -917,8 +917,8 @@ h2 {
 
 .memo-textarea:focus {
     outline: none;
-    border-color: #764ba2;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #c9171e;
+    box-shadow: 0 0 0 3px rgba(201, 23, 30, 0.1);
 }
 
 /* レスポンシブ */
@@ -964,7 +964,7 @@ h2 {
 
 .chart-filter select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #c9171e;
 }
 
 .chart-container {
@@ -1057,7 +1057,7 @@ h2 {
 
 .timeline-filter select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #c9171e;
 }
 
 .timeline-wrapper {
@@ -1073,7 +1073,7 @@ h2 {
 
 .timeline-bars-container {
     position: relative;
-    background-color: #f5f5ff;
+    background-color: rgba(201, 23, 30, 0.08);
     border-radius: 8px;
     min-height: 80px;
     margin-bottom: 0.5rem;
