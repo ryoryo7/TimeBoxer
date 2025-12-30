@@ -837,49 +837,49 @@ describe('時間調整機能', () => {
         test('正の値を加算できる', () => {
             const input = document.getElementById('timerMinutes');
             input.value = '25';
-            
+
             // adjustTime相当の処理をテスト
             let currentValue = parseInt(input.value) || 0;
             currentValue += 10;
             currentValue = Math.max(1, Math.min(999, currentValue));
             input.value = currentValue;
-            
+
             expect(parseInt(input.value)).toBe(35);
         });
 
         test('負の値を減算できる', () => {
             const input = document.getElementById('timerMinutes');
             input.value = '25';
-            
+
             let currentValue = parseInt(input.value) || 0;
             currentValue += -10;
             currentValue = Math.max(1, Math.min(999, currentValue));
             input.value = currentValue;
-            
+
             expect(parseInt(input.value)).toBe(15);
         });
 
         test('最小値は1分', () => {
             const input = document.getElementById('timerMinutes');
             input.value = '5';
-            
+
             let currentValue = parseInt(input.value) || 0;
             currentValue += -10;
             currentValue = Math.max(1, Math.min(999, currentValue));
             input.value = currentValue;
-            
+
             expect(parseInt(input.value)).toBe(1);
         });
 
         test('最大値は999分', () => {
             const input = document.getElementById('timerMinutes');
             input.value = '990';
-            
+
             let currentValue = parseInt(input.value) || 0;
             currentValue += 60;
             currentValue = Math.max(1, Math.min(999, currentValue));
             input.value = currentValue;
-            
+
             expect(parseInt(input.value)).toBe(999);
         });
     });
@@ -966,7 +966,7 @@ describe('期間フィルター', () => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        return logs.filter((log) => {
+        return logs.filter(log => {
             const logDate = new Date(log.startDateTime.replace(' ', 'T'));
             const logDay = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
 
@@ -991,8 +991,8 @@ describe('期間フィルター', () => {
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const formatDate = (date) => {
+
+    const formatDate = date => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
@@ -1000,15 +1000,15 @@ describe('期間フィルター', () => {
     };
 
     const todayLog = { id: 1, startDateTime: formatDate(today), taskName: '今日' };
-    
+
     const threeDaysAgo = new Date(today);
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     const threeDaysAgoLog = { id: 2, startDateTime: formatDate(threeDaysAgo), taskName: '3日前' };
-    
+
     const tenDaysAgo = new Date(today);
     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
     const tenDaysAgoLog = { id: 3, startDateTime: formatDate(tenDaysAgo), taskName: '10日前' };
-    
+
     const twoMonthsAgo = new Date(today);
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
     const twoMonthsAgoLog = { id: 4, startDateTime: formatDate(twoMonthsAgo), taskName: '2ヶ月前' };
@@ -1046,7 +1046,7 @@ describe('期間フィルター', () => {
 describe('タスク別合計時間', () => {
     function calculateTaskTotals(logs) {
         const totals = {};
-        logs.forEach((log) => {
+        logs.forEach(log => {
             const taskName = log.taskName || '不明';
             if (!totals[taskName]) {
                 totals[taskName] = 0;
@@ -1108,44 +1108,32 @@ describe('ログ編集時の実行時間再計算', () => {
     function calculateDurationFromDateTime(startDateTime, endDateTime) {
         const startDate = parseDateTime(startDateTime);
         const endDate = parseDateTime(endDateTime);
-        
+
         if (!startDate || !endDate || endDate <= startDate) {
             return null;
         }
-        
+
         const durationMs = endDate.getTime() - startDate.getTime();
         return parseFloat((durationMs / 1000 / 60).toFixed(1));
     }
 
     test('正常な日時から実行時間を計算する', () => {
-        const result = calculateDurationFromDateTime(
-            '2025-01-15 10:00:00',
-            '2025-01-15 10:30:00'
-        );
+        const result = calculateDurationFromDateTime('2025-01-15 10:00:00', '2025-01-15 10:30:00');
         expect(result).toBe(30);
     });
 
     test('秒単位の差も計算する', () => {
-        const result = calculateDurationFromDateTime(
-            '2025-01-15 10:00:00',
-            '2025-01-15 10:15:30'
-        );
+        const result = calculateDurationFromDateTime('2025-01-15 10:00:00', '2025-01-15 10:15:30');
         expect(result).toBe(15.5);
     });
 
     test('終了時刻が開始時刻より前の場合はnullを返す', () => {
-        const result = calculateDurationFromDateTime(
-            '2025-01-15 10:30:00',
-            '2025-01-15 10:00:00'
-        );
+        const result = calculateDurationFromDateTime('2025-01-15 10:30:00', '2025-01-15 10:00:00');
         expect(result).toBe(null);
     });
 
     test('同じ時刻の場合はnullを返す', () => {
-        const result = calculateDurationFromDateTime(
-            '2025-01-15 10:00:00',
-            '2025-01-15 10:00:00'
-        );
+        const result = calculateDurationFromDateTime('2025-01-15 10:00:00', '2025-01-15 10:00:00');
         expect(result).toBe(null);
     });
 
@@ -1170,20 +1158,20 @@ describe('ログ全削除', () => {
             { id: 2, taskName: 'タスク2', duration: 20 },
         ];
         localStorage.setItem('taskManager_logs', JSON.stringify(logs));
-        
+
         // 削除処理
         localStorage.setItem('taskManager_logs', JSON.stringify([]));
-        
+
         const result = JSON.parse(localStorage.getItem('taskManager_logs'));
         expect(result).toEqual([]);
     });
 
     test('空のログに対して削除しても問題ない', () => {
         localStorage.setItem('taskManager_logs', JSON.stringify([]));
-        
+
         // 削除処理
         localStorage.setItem('taskManager_logs', JSON.stringify([]));
-        
+
         const result = JSON.parse(localStorage.getItem('taskManager_logs'));
         expect(result).toEqual([]);
     });
@@ -1296,7 +1284,7 @@ describe('メモ帳機能', () => {
 
             // タブ2を削除
             const updated = getMemoData();
-            updated.memos = updated.memos.filter((m) => m.id !== 2);
+            updated.memos = updated.memos.filter(m => m.id !== 2);
             if (updated.activeTabId === 2) {
                 updated.activeTabId = updated.memos[0]?.id || null;
             }
@@ -1304,7 +1292,7 @@ describe('メモ帳機能', () => {
 
             const result = getMemoData();
             expect(result.memos).toHaveLength(2);
-            expect(result.memos.find((m) => m.id === 2)).toBeUndefined();
+            expect(result.memos.find(m => m.id === 2)).toBeUndefined();
             expect(result.activeTabId).toBe(1);
         });
 
@@ -1327,7 +1315,7 @@ describe('メモ帳機能', () => {
 
             // アクティブなタブ1を削除
             const updated = getMemoData();
-            updated.memos = updated.memos.filter((m) => m.id !== 1);
+            updated.memos = updated.memos.filter(m => m.id !== 1);
             updated.activeTabId = updated.memos[0]?.id || null;
             saveMemoData(updated);
 
@@ -1462,7 +1450,7 @@ describe('時間軸ラベル生成', () => {
         };
 
         const labels = generateAxisLabels(timeRange);
-        labels.forEach((label) => {
+        labels.forEach(label => {
             expect(label).toHaveProperty('text');
             expect(label).toHaveProperty('position');
             expect(typeof label.position).toBe('number');
@@ -1489,7 +1477,7 @@ describe('バー配置計算（重複回避）', () => {
         const rows = [];
         const rowEndTimes = [];
 
-        logs.forEach((log) => {
+        logs.forEach(log => {
             const startTime = parseDateTime(log.startDateTime).getTime();
             const endTime = parseDateTime(log.endDateTime).getTime();
 

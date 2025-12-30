@@ -3,14 +3,14 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>タスク管理アプリ</title>
+        <title>TimeBoxer</title>
         <link rel="stylesheet" href="style.css" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
         <div class="container">
             <header>
-                <h1>📋 タスク管理</h1>
+                <h1>📋 TimeBoxer</h1>
             </header>
 
             <!-- メモ帳セクション -->
@@ -78,19 +78,19 @@
             </section>
 
             <!-- タスクリスト -->
-<section class="task-section">
-    <h2>📝 タスクリスト</h2>
-    <div id="taskList"></div>
+            <section class="task-section">
+                <h2>📝 タスクリスト</h2>
+                <div id="taskList"></div>
 
-    <!-- 操作ボタン群 -->
-    <div class="task-actions">
-        <button onclick="exportToCsv()" class="btn-export">CSVエクスポート</button>
-        <button onclick="deleteSelectedTasks()" class="btn-delete-selected">
-            選択削除
-        </button>
-        <button onclick="deleteAllTasks()" class="btn-delete-all">全削除</button>
-    </div>
-</section>
+                <!-- 操作ボタン群 -->
+                <div class="task-actions">
+                    <button onclick="exportToCsv()" class="btn-export">CSVエクスポート</button>
+                    <button onclick="deleteSelectedTasks()" class="btn-delete-selected">
+                        選択削除
+                    </button>
+                    <button onclick="deleteAllTasks()" class="btn-delete-all">全削除</button>
+                </div>
+            </section>
 
             <!-- タイマーセクション -->
             <section class="timer-section">
@@ -207,35 +207,39 @@
                 </div>
 
                 <div class="timer-buttons">
-                    <button onclick="startTimer()" id="btnStart" class="btn-timer-start">
-                        ▶ Start
-                    </button>
-                    <button onclick="stopTimer()" id="btnStop" class="btn-timer-stop" disabled>
-                        ⏸ Stop
-                    </button>
-                    <button onclick="clearTimer()" id="btnClear" class="btn-timer-clear">
-                        ↺ Clear
-                    </button>
-                </div>
+    <button onclick="startTimer()" id="timerStartBtn" class="btn-timer-start">
+        ▶ Start
+    </button>
+    <button onclick="stopTimer()" id="timerStopBtn" class="btn-timer-stop" disabled>
+        ⏸ Stop
+    </button>
+    <button onclick="clearTimer()" id="timerClearBtn" class="btn-timer-clear">
+        ↺ Clear
+    </button>
+</div>
 
                 <div id="timerMessage" class="timer-message"></div>
             </section>
 
             <!-- 実行ログ（修正） -->
-<section class="log-section">
-    <div class="log-header">
-        <h2>📊 実行ログ</h2>
-        <div class="log-summary">
-            <span id="totalElapsedTime">合計経過時間: 0分</span>
-            <span id="totalLogCount">件数: 0件</span>
-        </div>
-    </div>
-    <div id="logContainer"></div>
-    <div class="log-actions">
-        <button class="btn-export-logs" onclick="exportLogsToCsv()">📥 ログCSV出力</button>
-        <button class="btn-delete-all-logs" onclick="deleteAllLogs()">🗑️ ログ全削除</button>
-    </div>
-</section>
+            <section class="log-section">
+                <div class="log-header">
+                    <h2>📊 実行ログ</h2>
+                    <div class="log-summary">
+                        <span id="totalElapsedTime">合計経過時間: 0分</span>
+                        <span id="totalLogCount">件数: 0件</span>
+                    </div>
+                </div>
+                <div id="logContainer"></div>
+                <div class="log-actions">
+                    <button class="btn-export-logs" onclick="exportLogsToCsv()">
+                        📥 ログCSV出力
+                    </button>
+                    <button class="btn-delete-all-logs" onclick="deleteAllLogs()">
+                        🗑️ ログ全削除
+                    </button>
+                </div>
+            </section>
 
             <!-- タスク別時間割合グラフ -->
             <section class="chart-section">
