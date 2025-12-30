@@ -808,12 +808,20 @@ function timerTick() {
 
     if (timerState.remainingSeconds <= 0) {
         timerState.remainingSeconds = 0;
-        updateTimerDisplay();
+        // タイマー表示を更新
+        const display = document.getElementById('timerDisplay');
+        if (display) {
+            display.textContent = '00:00';
+        }
         completeTimer();
         return;
     }
 
-    updateTimerDisplay();
+    // タイマー表示を更新
+    const display = document.getElementById('timerDisplay');
+    if (display) {
+        display.textContent = formatTimerDisplay(timerState.remainingSeconds);
+    }
 }
 
 function completeTimer() {
