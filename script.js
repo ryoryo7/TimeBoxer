@@ -97,7 +97,7 @@ async function syncFromGoogleSheets() {
     const data = await loadFromGoogleSheets();
     console.log('Google Sheetsからのデータ:', data);
 
-        // ログの中身を詳細に確認
+    // ログの中身を詳細に確認
     if (data && data.logs) {
         console.log('logs詳細:', JSON.stringify(data.logs, null, 2));
     }
@@ -110,33 +110,32 @@ async function syncFromGoogleSheets() {
             saveLogs(data.logs);
         }
         if (data.memos && Array.isArray(data.memos) && data.memos.length > 0) {
-    // 各行をメモとして復元
-    const memos = data.memos.map(row => ({
-        id: row.id || Date.now(),
-        name: row.name || 'メモ',
-        content: row.content || ''
-    }));
-    
-    // LocalStorageから既存の状態を取得（activeTabId, isCollapsed）
-    const existingData = getMemoData();
-    
-    const memoData = {
-        memos: memos,
-        activeTabId: existingData.activeTabId || memos[0]?.id || 1,
-        isCollapsed: existingData.isCollapsed || false
-    };
-    
-    // LocalStorageのみに保存（Google Sheetsへの再保存は不要）
-    localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(memoData));
-}
+            // 各行をメモとして復元
+            const memos = data.memos.map(row => ({
+                id: row.id || Date.now(),
+                name: row.name || 'メモ',
+                content: row.content || '',
+            }));
 
-console.log('Google Sheetsから同期完了');
-return true;
+            // LocalStorageから既存の状態を取得（activeTabId, isCollapsed）
+            const existingData = getMemoData();
+
+            const memoData = {
+                memos: memos,
+                activeTabId: existingData.activeTabId || memos[0]?.id || 1,
+                isCollapsed: existingData.isCollapsed || false,
+            };
+
+            // LocalStorageのみに保存（Google Sheetsへの再保存は不要）
+            localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(memoData));
+        }
+
+        console.log('Google Sheetsから同期完了');
+        return true;
     }
 
     return false;
 }
-
 
 // ==================== 定数 ====================
 const STORAGE_KEY_TASKS = 'taskManager_tasks';
@@ -208,6 +207,7 @@ async function initializeApp() {
 
     // 各種表示を更新
     renderTasks();
+    updateTaskSelect();
     renderLogs();
     initializeMemo();
     updateStats();
@@ -545,10 +545,29 @@ function handleDrop(event, targetTaskId) {
 
     if (!draggedTask || !targetTask || draggedTask.completed || targetTask.completed) return;
 
-    // 優先順位を入れ替え
-    const tempPriority = draggedTask.priority;
-    draggedTask.priority = targetTask.priority;
-    targetTask.priority = tempPriority;
+    const oldPriority = draggedTask.priority;
+    const newPriority = targetTask.priority;
+
+    if (oldPriority === newPriority) return;
+
+    // 挿入方式：ドラッグしたタスクをターゲット位置に挿入し、他を繰り下げ/繰り上げ
+    if (oldPriority > newPriority) {
+        // 上に移動：newPriority以上、oldPriority未満のタスクを+1
+        tasks.forEach(task => {
+            if (!task.completed && task.priority >= newPriority && task.priority < oldPriority) {
+                task.priority += 1;
+            }
+        });
+    } else {
+        // 下に移動：oldPriorityより大きく、newPriority以下のタスクを-1
+        tasks.forEach(task => {
+            if (!task.completed && task.priority > oldPriority && task.priority <= newPriority) {
+                task.priority -= 1;
+            }
+        });
+    }
+
+    draggedTask.priority = newPriority;
 
     renumberPriorities(tasks);
     saveTasks(tasks);
@@ -701,6 +720,23 @@ function updateTaskSelect() {
     });
 
     select.innerHTML = html;
+}
+
+// タスク選択時に想定時間を自動設定
+function handleTaskSelect() {
+    const taskSelect = document.getElementById('taskSelect');
+    const timerMinutes = document.getElementById('timerMinutes');
+
+    if (!taskSelect || !timerMinutes) return;
+
+    const selectedOption = taskSelect.options[taskSelect.selectedIndex];
+    const estimatedTime = parseInt(selectedOption.dataset.estimated) || 0;
+
+    // 想定時間が設定されている場合のみ自動入力
+    if (estimatedTime > 0) {
+        timerMinutes.value = estimatedTime;
+        updateTimerDisplay();
+    }
 }
 
 function setPresetTime(minutes) {
@@ -857,9 +893,8 @@ function stopTimer() {
     stopNotificationSound(); // 通知音を停止
 
     // ボタンの状態を更新
-document.getElementById('timerStartBtn').disabled = false;
-document.getElementById('timerStopBtn').disabled = true;
-
+    document.getElementById('timerStartBtn').disabled = false;
+    document.getElementById('timerStopBtn').disabled = true;
 
     // ログを保存
     saveTimerLog(false);
@@ -867,24 +902,36 @@ document.getElementById('timerStopBtn').disabled = true;
 }
 
 function clearTimer() {
-    clearInterval(timerState.intervalId);
+    // インターバルを停止
+    if (timerState.intervalId) {
+        clearInterval(timerState.intervalId);
+        timerState.intervalId = null;
+    }
+
     timerState.isRunning = false;
+    timerState.isPaused = false;
     timerState.remainingSeconds = 0;
 
     stopNotificationSound(); // 通知音を停止
 
-    // 表示をリセット
-    document.getElementById('timerDisplay').textContent = '00:00';
-    document.getElementById('timerSchedule').textContent = '';
-    document.getElementById('timerMessage').textContent = '';
+    // 表示をリセット（要素の存在チェック付き）
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerSchedule = document.getElementById('timerSchedule');
+    const timerMessage = document.getElementById('timerMessage');
+
+    if (timerDisplay) timerDisplay.textContent = '00:00';
+    if (timerSchedule) timerSchedule.textContent = '';
+    if (timerMessage) timerMessage.textContent = '';
 
     // ボタンの状態をリセット
-document.getElementById('timerStartBtn').disabled = false;
-document.getElementById('timerStopBtn').disabled = true;
+    document.getElementById('timerStartBtn').disabled = false;
+    document.getElementById('timerStopBtn').disabled = true;
 
-
-    resetTimerState();
+    // LocalStorageからタイマー状態を削除
     clearTimerState();
+
+    // タイマー状態をリセット
+    resetTimerState();
 }
 
 function resetTimerState() {
@@ -1314,7 +1361,7 @@ function getMemoData() {
         };
     }
     const parsed = JSON.parse(data);
-    
+
     // memosが配列でない、または空の場合はデフォルト値を返す
     if (!parsed.memos || !Array.isArray(parsed.memos) || parsed.memos.length === 0) {
         return {
@@ -1323,7 +1370,7 @@ function getMemoData() {
             isCollapsed: false,
         };
     }
-    
+
     return parsed;
 }
 
@@ -1334,7 +1381,7 @@ function saveMemoData(data) {
     const rows = data.memos.map(memo => ({
         id: memo.id,
         name: memo.name,
-        content: memo.content
+        content: memo.content,
     }));
     saveToGoogleSheets('memos', rows);
 }
@@ -1952,19 +1999,18 @@ function parseDateTime(dateTimeStr) {
         console.error('parseDateTime: 無効な日時文字列:', dateTimeStr);
         return new Date();
     }
-    
+
     const parts = dateTimeStr.split(' ');
     if (parts.length < 2) {
         console.error('parseDateTime: 不正なフォーマット:', dateTimeStr);
         return new Date();
     }
-    
+
     const [datePart, timePart] = parts;
     const [year, month, day] = datePart.split('-').map(Number);
     const [hour, minute, second] = timePart.split(':').map(Number);
     return new Date(year, month - 1, day, hour, minute, second || 0);
 }
-
 
 // バーの位置とサイズを計算
 function calculateBarPosition(log, timeRange) {
@@ -2193,7 +2239,7 @@ function restoreTimer() {
     const saved = loadTimerState();
     console.log('タイマー復元データ:', saved);
     if (!saved || !saved.isRunning || !saved.endTime) {
-        console.log('復元データなし、または実行中でない'); 
+        console.log('復元データなし、または実行中でない');
         return false;
     }
 

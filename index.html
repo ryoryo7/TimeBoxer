@@ -102,7 +102,7 @@
                 <div class="timer-controls">
                     <div class="timer-input-group">
                         <label for="taskSelect">対象タスク</label>
-                        <select id="taskSelect">
+                        <select id="taskSelect" onchange="handleTaskSelect()">
                             <option value="interrupt" data-estimated="0">割り込みタスク</option>
                         </select>
                     </div>
@@ -210,16 +210,16 @@
                 </div>
 
                 <div class="timer-buttons">
-    <button onclick="startTimer()" id="timerStartBtn" class="btn-timer-start">
-        ▶ Start
-    </button>
-    <button onclick="stopTimer()" id="timerStopBtn" class="btn-timer-stop" disabled>
-        ⏸ Stop
-    </button>
-    <button onclick="clearTimer()" id="timerClearBtn" class="btn-timer-clear">
-        ↺ Clear
-    </button>
-</div>
+                    <button onclick="startTimer()" id="timerStartBtn" class="btn-timer-start">
+                        ▶ Start
+                    </button>
+                    <button onclick="stopTimer()" id="timerStopBtn" class="btn-timer-stop" disabled>
+                        ⏸ Stop
+                    </button>
+                    <button onclick="clearTimer()" id="timerClearBtn" class="btn-timer-clear">
+                        ↺ Clear
+                    </button>
+                </div>
 
                 <div id="timerMessage" class="timer-message"></div>
             </section>

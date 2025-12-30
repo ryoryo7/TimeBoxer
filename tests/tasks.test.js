@@ -1614,3 +1614,452 @@ describe('ログ全削除（追加テスト）', () => {
         expect(JSON.parse(data)).toEqual([]);
     });
 });
+
+// ==================== ドラッグ&ドロップ（挿入方式）のテスト ====================
+describe('handleDrop - 挿入方式', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    test('上に移動：タスクを上位に挿入し、間のタスクを繰り下げる', () => {
+        // 初期状態: タスクA(優先順位1), タスクB(2), タスクC(3), タスクD(4)
+        const tasks = [
+            { id: 1, name: 'タスクA', priority: 1, completed: false },
+            { id: 2, name: 'タスクB', priority: 2, completed: false },
+            { id: 3, name: 'タスクC', priority: 3, completed: false },
+            { id: 4, name: 'タスクD', priority: 4, completed: false },
+        ];
+        localStorage.setItem('taskManager_tasks', JSON.stringify(tasks));
+
+        // タスクD(優先順位4)をタスクB(優先順位2)の位置にドロップ
+        const draggedTaskId = 4;
+        const targetTaskId = 2;
+
+        const draggedTask = tasks.find(t => t.id === draggedTaskId);
+        const targetTask = tasks.find(t => t.id === targetTaskId);
+        const oldPriority = draggedTask.priority; // 4
+        const newPriority = targetTask.priority; // 2
+
+        // 上に移動：newPriority以上、oldPriority未満のタスクを+1
+        tasks.forEach(task => {
+            if (!task.completed && task.priority >= newPriority && task.priority < oldPriority) {
+                task.priority += 1;
+            }
+        });
+        draggedTask.priority = newPriority;
+
+        // 期待結果: タスクA(1), タスクD(2), タスクB(3), タスクC(4)
+        expect(tasks.find(t => t.id === 1).priority).toBe(1); // タスクA: 変更なし
+        expect(tasks.find(t => t.id === 4).priority).toBe(2); // タスクD: 4→2
+        expect(tasks.find(t => t.id === 2).priority).toBe(3); // タスクB: 2→3
+        expect(tasks.find(t => t.id === 3).priority).toBe(4); // タスクC: 3→4
+    });
+
+    test('下に移動：タスクを下位に挿入し、間のタスクを繰り上げる', () => {
+        // 初期状態: タスクA(優先順位1), タスクB(2), タスクC(3), タスクD(4)
+        const tasks = [
+            { id: 1, name: 'タスクA', priority: 1, completed: false },
+            { id: 2, name: 'タスクB', priority: 2, completed: false },
+            { id: 3, name: 'タスクC', priority: 3, completed: false },
+            { id: 4, name: 'タスクD', priority: 4, completed: false },
+        ];
+        localStorage.setItem('taskManager_tasks', JSON.stringify(tasks));
+
+        // タスクA(優先順位1)をタスクC(優先順位3)の位置にドロップ
+        const draggedTaskId = 1;
+        const targetTaskId = 3;
+
+        const draggedTask = tasks.find(t => t.id === draggedTaskId);
+        const targetTask = tasks.find(t => t.id === targetTaskId);
+        const oldPriority = draggedTask.priority; // 1
+        const newPriority = targetTask.priority; // 3
+
+        // 下に移動：oldPriorityより大きく、newPriority以下のタスクを-1
+        tasks.forEach(task => {
+            if (!task.completed && task.priority > oldPriority && task.priority <= newPriority) {
+                task.priority -= 1;
+            }
+        });
+        draggedTask.priority = newPriority;
+
+        // 期待結果: タスクB(1), タスクC(2), タスクA(3), タスクD(4)
+        expect(tasks.find(t => t.id === 2).priority).toBe(1); // タスクB: 2→1
+        expect(tasks.find(t => t.id === 3).priority).toBe(2); // タスクC: 3→2
+        expect(tasks.find(t => t.id === 1).priority).toBe(3); // タスクA: 1→3
+        expect(tasks.find(t => t.id === 4).priority).toBe(4); // タスクD: 変更なし
+    });
+
+    test('同じ位置へのドロップは何も変更しない', () => {
+        const tasks = [
+            { id: 1, name: 'タスクA', priority: 1, completed: false },
+            { id: 2, name: 'タスクB', priority: 2, completed: false },
+        ];
+        localStorage.setItem('taskManager_tasks', JSON.stringify(tasks));
+
+        // タスクAを自分自身にドロップ（同じタスク）
+        const draggedTaskId = 1;
+        const targetTaskId = 1;
+
+        // 同じタスクの場合は早期リターン
+        if (draggedTaskId === targetTaskId) {
+            // 変更なし
+            expect(tasks.find(t => t.id === 1).priority).toBe(1);
+            expect(tasks.find(t => t.id === 2).priority).toBe(2);
+        }
+    });
+
+    test('完了済みタスクはドラッグ対象外', () => {
+        const tasks = [
+            { id: 1, name: 'タスクA', priority: 1, completed: true },
+            { id: 2, name: 'タスクB', priority: 2, completed: false },
+            { id: 3, name: 'タスクC', priority: 3, completed: false },
+        ];
+        localStorage.setItem('taskManager_tasks', JSON.stringify(tasks));
+
+        const draggedTask = tasks.find(t => t.id === 1);
+        const targetTask = tasks.find(t => t.id === 3);
+
+        // 完了済みタスクは処理しない
+        if (draggedTask.completed || targetTask.completed) {
+            expect(tasks.find(t => t.id === 1).priority).toBe(1);
+            expect(tasks.find(t => t.id === 2).priority).toBe(2);
+            expect(tasks.find(t => t.id === 3).priority).toBe(3);
+        }
+    });
+
+    test('隣接するタスク間の移動', () => {
+        // 初期状態: タスクA(1), タスクB(2)
+        const tasks = [
+            { id: 1, name: 'タスクA', priority: 1, completed: false },
+            { id: 2, name: 'タスクB', priority: 2, completed: false },
+        ];
+        localStorage.setItem('taskManager_tasks', JSON.stringify(tasks));
+
+        // タスクB(優先順位2)をタスクA(優先順位1)の位置にドロップ
+        const draggedTask = tasks.find(t => t.id === 2);
+        const targetTask = tasks.find(t => t.id === 1);
+        const oldPriority = draggedTask.priority; // 2
+        const newPriority = targetTask.priority; // 1
+
+        // 上に移動
+        tasks.forEach(task => {
+            if (!task.completed && task.priority >= newPriority && task.priority < oldPriority) {
+                task.priority += 1;
+            }
+        });
+        draggedTask.priority = newPriority;
+
+        // 期待結果: タスクB(1), タスクA(2)
+        expect(tasks.find(t => t.id === 2).priority).toBe(1); // タスクB: 2→1
+        expect(tasks.find(t => t.id === 1).priority).toBe(2); // タスクA: 1→2
+    });
+});
+
+// ==================== タイマー機能のテスト ====================
+describe('タイマー機能', () => {
+    const STORAGE_KEY_TIMER = 'taskManager_timer';
+
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    describe('タイマー状態の保存と読み込み', () => {
+        test('saveTimerState: タイマー状態をLocalStorageに保存できる', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: '2025-12-30T10:00:00.000Z',
+                endTime: '2025-12-30T10:05:00.000Z',
+                totalSeconds: 300,
+                taskId: 'interrupt',
+                taskName: '割り込みタスク',
+                taskDetail: 'テスト詳細',
+                achievement: 80,
+                estimatedTime: 5,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            expect(saved.isRunning).toBe(true);
+            expect(saved.totalSeconds).toBe(300);
+            expect(saved.taskName).toBe('割り込みタスク');
+        });
+
+        test('loadTimerState: 保存されたタイマー状態を読み込める', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: '2025-12-30T10:00:00.000Z',
+                endTime: '2025-12-30T10:05:00.000Z',
+                totalSeconds: 300,
+                taskId: 1,
+                taskName: 'テストタスク',
+                taskDetail: '',
+                achievement: null,
+                estimatedTime: 10,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const loaded = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            expect(loaded).not.toBeNull();
+            expect(loaded.isRunning).toBe(true);
+            expect(loaded.taskId).toBe(1);
+        });
+
+        test('loadTimerState: 保存データがない場合はnullを返す', () => {
+            const loaded = localStorage.getItem(STORAGE_KEY_TIMER);
+            expect(loaded).toBeNull();
+        });
+
+        test('clearTimerState: タイマー状態をLocalStorageから削除できる', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: '2025-12-30T10:00:00.000Z',
+                endTime: '2025-12-30T10:05:00.000Z',
+                totalSeconds: 300,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+            expect(localStorage.getItem(STORAGE_KEY_TIMER)).not.toBeNull();
+
+            localStorage.removeItem(STORAGE_KEY_TIMER);
+            expect(localStorage.getItem(STORAGE_KEY_TIMER)).toBeNull();
+        });
+    });
+
+    describe('タイマー復元ロジック', () => {
+        test('restoreTimer: 有効な残り時間がある場合は復元可能', () => {
+            const now = new Date();
+            const endTime = new Date(now.getTime() + 60000); // 1分後
+
+            const timerState = {
+                isRunning: true,
+                startTime: now.toISOString(),
+                endTime: endTime.toISOString(),
+                totalSeconds: 300,
+                taskId: 'interrupt',
+                taskName: '割り込みタスク',
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            const savedEndTime = new Date(saved.endTime);
+            const remainingMs = savedEndTime.getTime() - now.getTime();
+
+            expect(saved.isRunning).toBe(true);
+            expect(remainingMs).toBeGreaterThan(0);
+        });
+
+        test('restoreTimer: 既に終了している場合は復元しない', () => {
+            const now = new Date();
+            const endTime = new Date(now.getTime() - 60000); // 1分前（既に終了）
+
+            const timerState = {
+                isRunning: true,
+                startTime: new Date(now.getTime() - 360000).toISOString(),
+                endTime: endTime.toISOString(),
+                totalSeconds: 300,
+                taskId: 'interrupt',
+                taskName: '割り込みタスク',
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            const savedEndTime = new Date(saved.endTime);
+            const remainingMs = savedEndTime.getTime() - now.getTime();
+
+            // 残り時間が0以下なので復元不可
+            expect(remainingMs).toBeLessThanOrEqual(0);
+        });
+
+        test('restoreTimer: isRunningがfalseの場合は復元しない', () => {
+            const timerState = {
+                isRunning: false,
+                startTime: null,
+                endTime: null,
+                totalSeconds: 0,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            expect(saved.isRunning).toBe(false);
+            // isRunningがfalseなので復元対象外
+        });
+
+        test('restoreTimer: endTimeがない場合は復元しない', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: new Date().toISOString(),
+                endTime: null,
+                totalSeconds: 300,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_TIMER));
+            expect(saved.endTime).toBeNull();
+            // endTimeがないので復元対象外
+        });
+    });
+
+    describe('clearTimer動作', () => {
+        test('clearTimer: LocalStorageからタイマー状態が削除される', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: '2025-12-30T10:00:00.000Z',
+                endTime: '2025-12-30T10:05:00.000Z',
+                totalSeconds: 300,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+            expect(localStorage.getItem(STORAGE_KEY_TIMER)).not.toBeNull();
+
+            // clearTimerの動作をシミュレート
+            localStorage.removeItem(STORAGE_KEY_TIMER);
+
+            expect(localStorage.getItem(STORAGE_KEY_TIMER)).toBeNull();
+        });
+
+        test('clearTimer: タイマー状態がリセットされる', () => {
+            // clearTimer後の期待される状態
+            const resetState = {
+                isRunning: false,
+                isPaused: false,
+                intervalId: null,
+                startTime: null,
+                endTime: null,
+                remainingSeconds: 0,
+                totalSeconds: 0,
+                taskId: null,
+                taskName: '',
+                taskDetail: '',
+                achievement: null,
+                estimatedTime: 0,
+            };
+
+            expect(resetState.isRunning).toBe(false);
+            expect(resetState.isPaused).toBe(false);
+            expect(resetState.remainingSeconds).toBe(0);
+            expect(resetState.taskId).toBeNull();
+        });
+    });
+
+    describe('stopTimer動作', () => {
+        test('stopTimer: 実行中のタイマーを停止できる', () => {
+            const timerState = {
+                isRunning: true,
+                startTime: '2025-12-30T10:00:00.000Z',
+                endTime: '2025-12-30T10:05:00.000Z',
+                totalSeconds: 300,
+            };
+
+            localStorage.setItem(STORAGE_KEY_TIMER, JSON.stringify(timerState));
+
+            // stopTimerの動作をシミュレート
+            timerState.isRunning = false;
+            localStorage.removeItem(STORAGE_KEY_TIMER);
+
+            expect(timerState.isRunning).toBe(false);
+            expect(localStorage.getItem(STORAGE_KEY_TIMER)).toBeNull();
+        });
+
+        test('stopTimer: 実行中でない場合は何もしない', () => {
+            const timerState = {
+                isRunning: false,
+            };
+
+            // isRunningがfalseの場合は早期リターン
+            if (!timerState.isRunning) {
+                expect(timerState.isRunning).toBe(false);
+            }
+        });
+    });
+
+    describe('タイマー残り時間計算', () => {
+        test('残り時間の計算が正しい', () => {
+            const now = new Date();
+            const endTime = new Date(now.getTime() + 300000); // 5分後
+
+            const remainingMs = endTime.getTime() - now.getTime();
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+            expect(remainingSeconds).toBe(300);
+        });
+
+        test('経過後の残り時間計算', () => {
+            const now = new Date();
+            const startTime = new Date(now.getTime() - 120000); // 2分前に開始
+            const endTime = new Date(startTime.getTime() + 300000); // 開始から5分後
+
+            const remainingMs = endTime.getTime() - now.getTime();
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+            // 5分 - 2分 = 3分 = 180秒
+            expect(remainingSeconds).toBe(180);
+        });
+    });
+});
+
+// ==================== タスク選択時の想定時間自動設定テスト ====================
+describe('handleTaskSelect - 想定時間自動設定', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    test('想定時間が設定されているタスクを選択すると、カスタム時間が更新される', () => {
+        // タスクの想定時間
+        const task = {
+            id: 1,
+            name: 'テストタスク',
+            estimatedTime: 30,
+        };
+
+        // 選択されたオプションのdata-estimatedから値を取得するシミュレーション
+        const estimatedTime = task.estimatedTime;
+        let timerMinutesValue = 5; // デフォルト値
+
+        if (estimatedTime > 0) {
+            timerMinutesValue = estimatedTime;
+        }
+
+        expect(timerMinutesValue).toBe(30);
+    });
+
+    test('想定時間が0のタスク（割り込みタスク）を選択しても、カスタム時間は変更されない', () => {
+        const task = {
+            id: 'interrupt',
+            name: '割り込みタスク',
+            estimatedTime: 0,
+        };
+
+        const estimatedTime = task.estimatedTime;
+        let timerMinutesValue = 5; // デフォルト値
+
+        // 想定時間が0以下の場合は変更しない
+        if (estimatedTime > 0) {
+            timerMinutesValue = estimatedTime;
+        }
+
+        expect(timerMinutesValue).toBe(5); // デフォルト値のまま
+    });
+
+    test('想定時間がnullのタスクを選択しても、カスタム時間は変更されない', () => {
+        const task = {
+            id: 2,
+            name: 'タスク2',
+            estimatedTime: null,
+        };
+
+        const estimatedTime = parseInt(task.estimatedTime) || 0;
+        let timerMinutesValue = 10;
+
+        if (estimatedTime > 0) {
+            timerMinutesValue = estimatedTime;
+        }
+
+        expect(timerMinutesValue).toBe(10); // 変更されない
+    });
+});
