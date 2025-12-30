@@ -801,15 +801,19 @@ function formatTimeHHMM(date) {
 }
 
 function timerTick() {
-    timerState.remainingSeconds--;
-
-    document.getElementById('timerDisplay').textContent = formatTimerDisplay(
-        timerState.remainingSeconds
-    );
+    // 終了時刻との差分から残り時間を計算（バックグラウンド対応）
+    const now = new Date();
+    const remainingMs = timerState.endTime.getTime() - now.getTime();
+    timerState.remainingSeconds = Math.ceil(remainingMs / 1000);
 
     if (timerState.remainingSeconds <= 0) {
+        timerState.remainingSeconds = 0;
+        updateTimerDisplay();
         completeTimer();
+        return;
     }
+
+    updateTimerDisplay();
 }
 
 function completeTimer() {
