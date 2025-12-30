@@ -7,12 +7,13 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
-        "lint:fix": "eslint --fix .",
+        "lint:fix": "eslint . --fix",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "check": "npm run format:check && npm run lint",
-        "fix": "npm run format && npm run lint:fix"
+        "fix": "npm run format && npm run lint:fix",
+        "check": "npm run format:check && npm run lint && npm run test",
+        "all": "npm run fix && npm run test"
     },
     "devDependencies": {
         "@eslint/js": "^9.17.0",

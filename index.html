@@ -3,89 +3,297 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>タスク管理</title>
+        <title>タスク管理アプリ</title>
         <link rel="stylesheet" href="style.css" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
         <div class="container">
-            <h1>📋 タスク管理</h1>
+            <header>
+                <h1>📋 タスク管理</h1>
+            </header>
 
-            <div class="stats">
+            <!-- メモ帳セクション -->
+            <section class="memo-section">
+                <div class="memo-header" onclick="toggleMemoCollapse()">
+                    <span>メモ帳</span>
+                    <span class="memo-toggle" id="memoToggle">▲</span>
+                </div>
+                <div class="memo-content" id="memoContent">
+                    <div class="memo-tabs" id="memoTabs"></div>
+                    <textarea
+                        class="memo-textarea"
+                        id="memoTextarea"
+                        placeholder="メモを入力..."
+                        oninput="saveMemoContent()"
+                    ></textarea>
+                </div>
+            </section>
+
+            <!-- 統計エリア -->
+            <section class="stats-section">
                 <div class="stat-card">
-                    <div class="stat-value" id="totalTasks">0</div>
-                    <div class="stat-label">総タスク数</div>
+                    <div class="stat-number" id="totalTasks">0</div>
+                    <div class="stat-label">総タスク</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="remainingTasks">0</div>
+                    <div class="stat-number" id="incompleteTasks">0</div>
                     <div class="stat-label">未完了</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="totalTime">0分</div>
+                    <div class="stat-number" id="totalTime">0分</div>
                     <div class="stat-label">総想定時間</div>
                 </div>
-            </div>
+            </section>
 
-            <div class="task-form">
-                <div class="form-row">
-                    <div class="form-group task-name">
-                        <label for="taskName">タスク名</label>
-                        <input type="text" id="taskName" placeholder="タスクを入力..." />
+            <!-- タスク追加フォーム -->
+            <section class="form-section">
+                <h2>新規タスク追加</h2>
+                <form id="taskForm" onsubmit="addTask(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskName">タスク名 <span class="required">*</span></label>
+                            <input
+                                type="text"
+                                id="taskName"
+                                required
+                                placeholder="タスク名を入力"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="taskPriority">優先順位</label>
+                            <input type="number" id="taskPriority" min="1" placeholder="--" />
+                        </div>
+                        <div class="form-group">
+                            <label for="taskTime">想定時間(分)</label>
+                            <input type="number" id="taskTime" min="1" value="30" />
+                        </div>
+                        <div class="form-group">
+                            <label for="taskDate">対象日</label>
+                            <input type="date" id="taskDate" />
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="priority">優先順位</label>
-                        <input type="number" id="priority" min="1" placeholder="--" />
-                    </div>
-                    <div class="form-group">
-                        <label for="estimatedTime">想定時間(分)</label>
-                        <input
-                            type="number"
-                            id="estimatedTime"
-                            min="1"
-                            step="1"
-                            value="30"
-                            placeholder="30"
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label for="targetDate">対象日</label>
-                        <input type="date" id="targetDate" />
-                    </div>
-                    <button class="btn btn-primary" id="addTaskBtn">追加</button>
-                </div>
-                <p class="priority-hint">
-                    ※ 優先順位は数字が小さいほど優先度が高くなります（未指定で最下位に追加）
-                </p>
-            </div>
+                    <button type="submit" class="btn-primary">追加</button>
+                </form>
+            </section>
 
-            <div class="task-list">
-                <div class="task-header">
-                    <div class="header-drag"></div>
-                    <div class="header-checkbox">
-                        <input type="checkbox" id="selectAll" title="全選択" />
+            <!-- タスクリスト -->
+<section class="task-section">
+    <h2>📝 タスクリスト</h2>
+    <div id="taskList"></div>
+
+    <!-- 操作ボタン群 -->
+    <div class="task-actions">
+        <button onclick="exportToCsv()" class="btn-export">CSVエクスポート</button>
+        <button onclick="deleteSelectedTasks()" class="btn-delete-selected">
+            選択削除
+        </button>
+        <button onclick="deleteAllTasks()" class="btn-delete-all">全削除</button>
+    </div>
+</section>
+
+            <!-- タイマーセクション -->
+            <section class="timer-section">
+                <h2>⏱️ カウントダウンタイマー</h2>
+
+                <div class="timer-controls">
+                    <div class="timer-input-group">
+                        <label for="taskSelect">対象タスク</label>
+                        <select id="taskSelect">
+                            <option value="interrupt" data-estimated="0">割り込みタスク</option>
+                        </select>
                     </div>
-                    <div>優先</div>
-                    <div>タスク名</div>
-                    <div>想定時間</div>
-                    <div>対象日</div>
-                    <div>操作</div>
-                </div>
-                <div id="taskContainer">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📝</div>
-                        <p>タスクがありません<br />新しいタスクを追加してください</p>
+
+                    <div class="timer-input-group">
+                        <label for="taskDetail">タスク内容詳細（任意）</label>
+                        <textarea
+                            id="taskDetail"
+                            placeholder="タスクの詳細をメモ..."
+                            rows="2"
+                        ></textarea>
+                    </div>
+
+                    <div class="timer-input-group">
+                        <label for="achievement">達成度（任意）</label>
+                        <div class="input-with-suffix">
+                            <input
+                                type="number"
+                                id="achievement"
+                                min="0"
+                                max="100"
+                                placeholder="0〜100"
+                            />
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+
+                    <div class="timer-input-group">
+                        <label>プリセット</label>
+                        <div class="preset-buttons">
+                            <button type="button" onclick="setPresetTime(5)">5分</button>
+                            <button type="button" onclick="setPresetTime(10)">10分</button>
+                            <button type="button" onclick="setPresetTime(30)">30分</button>
+                            <button type="button" onclick="setPresetTime(60)">60分</button>
+                        </div>
+                    </div>
+
+                    <div class="timer-input-group">
+                        <label>時間調整</label>
+                        <div class="adjust-buttons">
+                            <button
+                                type="button"
+                                onclick="adjustTime(-10)"
+                                class="btn-adjust btn-minus"
+                            >
+                                -10分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(-1)"
+                                class="btn-adjust btn-minus"
+                            >
+                                -1分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(1)"
+                                class="btn-adjust btn-plus"
+                            >
+                                +1分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(5)"
+                                class="btn-adjust btn-plus"
+                            >
+                                +5分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(10)"
+                                class="btn-adjust btn-plus"
+                            >
+                                +10分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(30)"
+                                class="btn-adjust btn-plus"
+                            >
+                                +30分
+                            </button>
+                            <button
+                                type="button"
+                                onclick="adjustTime(60)"
+                                class="btn-adjust btn-plus"
+                            >
+                                +60分
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="timer-input-group">
+                        <label for="timerMinutes">カスタム時間(分)</label>
+                        <input type="number" id="timerMinutes" min="1" max="999" value="25" />
                     </div>
                 </div>
-                <div class="task-toolbar" id="taskToolbar">
-                    <button class="btn btn-toolbar btn-export" id="exportCsvBtn">
-                        📥 CSVエクスポート
+
+                <div class="timer-display">
+                    <div class="timer-time" id="timerDisplay">25:00</div>
+                    <div class="timer-info">
+                        <span id="startTimeDisplay">開始: --:--</span>
+                        <span id="endTimeDisplay">終了予定: --:--</span>
+                    </div>
+                </div>
+
+                <div class="timer-buttons">
+                    <button onclick="startTimer()" id="btnStart" class="btn-timer-start">
+                        ▶ Start
                     </button>
-                    <button class="btn btn-toolbar btn-delete-selected" id="deleteSelectedBtn">
-                        🗑️ 選択削除
+                    <button onclick="stopTimer()" id="btnStop" class="btn-timer-stop" disabled>
+                        ⏸ Stop
                     </button>
-                    <button class="btn btn-toolbar btn-delete-all" id="deleteAllBtn">
-                        ⚠️ 全削除
+                    <button onclick="clearTimer()" id="btnClear" class="btn-timer-clear">
+                        ↺ Clear
                     </button>
                 </div>
+
+                <div id="timerMessage" class="timer-message"></div>
+            </section>
+
+            <!-- 実行ログ（修正） -->
+<section class="log-section">
+    <div class="log-header">
+        <h2>📊 実行ログ</h2>
+        <div class="log-summary">
+            <span id="totalElapsedTime">合計経過時間: 0分</span>
+            <span id="totalLogCount">件数: 0件</span>
+        </div>
+    </div>
+    <div id="logContainer"></div>
+    <div class="log-actions">
+        <button class="btn-export-logs" onclick="exportLogsToCsv()">📥 ログCSV出力</button>
+        <button class="btn-delete-all-logs" onclick="deleteAllLogs()">🗑️ ログ全削除</button>
+    </div>
+</section>
+
+            <!-- タスク別時間割合グラフ -->
+            <section class="chart-section">
+                <h2>📊 タスク別 時間割合</h2>
+                <div class="chart-filter">
+                    <label for="chartPeriod">期間:</label>
+                    <select id="chartPeriod" onchange="updateChart()">
+                        <option value="today" selected>今日</option>
+                        <option value="week">今週</option>
+                        <option value="month">今月</option>
+                        <option value="all">全期間</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="taskPieChart"></canvas>
+                </div>
+                <div class="chart-no-data" id="chartNoData" style="display: none">
+                    実行ログがありません
+                </div>
+            </section>
+
+            <!-- 活動タイムライン -->
+            <section class="timeline-section">
+                <div class="timeline-header">
+                    <h2>📅 活動タイムライン</h2>
+                    <button
+                        onclick="toggleTimeline()"
+                        id="timelineToggleBtn"
+                        class="btn-timeline-toggle"
+                    >
+                        活動タイムライン表示
+                    </button>
+                </div>
+                <div class="timeline-content" id="timelineContent" style="display: none">
+                    <div class="timeline-filter">
+                        <label for="timelinePeriod">期間:</label>
+                        <select id="timelinePeriod" onchange="updateTimeline()">
+                            <option value="today" selected>今日</option>
+                            <option value="week">今週</option>
+                            <option value="month">今月</option>
+                            <option value="all">全期間</option>
+                        </select>
+                    </div>
+                    <div class="timeline-container" id="timelineContainer"></div>
+                    <div class="timeline-no-data" id="timelineNoData" style="display: none">
+                        実行ログがありません
+                    </div>
+                    <p class="timeline-hint">クリックで拡大表示できます。</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- タイムライン拡大モーダル -->
+        <div class="timeline-modal" id="timelineModal" onclick="closeTimelineModal(event)">
+            <div class="timeline-modal-content" onclick="event.stopPropagation()">
+                <button class="timeline-modal-close" onclick="closeTimelineModal()">&times;</button>
+                <h3>活動タイムライン</h3>
+                <div class="timeline-modal-container" id="timelineModalContainer"></div>
             </div>
         </div>
 

@@ -1,5 +1,5 @@
-import js from '@eslint/js';
 import globals from 'globals';
+import js from '@eslint/js';
 
 export default [
     js.configs.recommended,
@@ -11,39 +11,26 @@ export default [
             sourceType: 'module',
             globals: {
                 ...globals.browser,
-                // HTMLのonclick等から呼び出されるグローバル関数
-                toggleComplete: 'writable',
-                deleteTask: 'writable',
-                startEdit: 'writable',
-                cancelEdit: 'writable',
-                saveEdit: 'writable',
-                handleEditKeypress: 'writable',
-                handleDragStart: 'writable',
-                handleDragEnd: 'writable',
-                handleDragOver: 'writable',
-                handleDrop: 'writable',
-                handleTaskSelect: 'writable',
+                Chart: 'readonly',
             },
         },
         rules: {
-            // 未使用変数
-            'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^(toggleComplete|deleteTask|startEdit|cancelEdit|saveEdit|handleEditKeypress|handleDragStart|handleDragEnd|handleDragOver|handleDrop|handleTaskSelect)$' }],
-
-            // 冗長なコード
+            'no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern:
+                        '^(addTask|toggleComplete|deleteTask|startEdit|cancelEdit|saveEdit|handleEditKeypress|handleDragStart|handleDragEnd|handleDragOver|handleDrop|handleDragLeave|handleTaskSelect|setPresetTime|adjustTime|startTimer|stopTimer|clearTimer|startLogEdit|saveLogEdit|cancelLogEdit|deleteLog|handleLogEditKeypress|onLogTaskChange|exportToCsv|exportLogsToCsv|deleteSelectedTasks|deleteAllTasks|deleteAllLogs|toggleMemoCollapse|selectMemoTab|addMemoTab|deleteMemoTab|startEditTabName|saveMemoContent|updateChart|toggleTimeline|updateTimeline|openTimelineModal|closeTimelineModal|showTimelineTooltip|hideTimelineTooltip)$',
+                },
+            ],
             'no-extra-semi': 'error',
             'no-extra-boolean-cast': 'error',
-
-            // 一貫性
             'prefer-const': 'error',
             'no-var': 'error',
             eqeqeq: ['error', 'always'],
-
-            // バグ検出
             'no-undef': 'error',
             'no-unreachable': 'error',
             'no-duplicate-case': 'error',
-
-            // スタイル
             'no-multiple-empty-lines': ['error', { max: 1 }],
             'no-trailing-spaces': 'error',
         },
