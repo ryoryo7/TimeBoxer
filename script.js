@@ -147,6 +147,9 @@ let editingLogId = null;
 let draggedTaskId = null;
 // 通知音のグローバル変数
 let notificationAudio = null;
+// ログフィルター用のグローバル変数
+let logFilterStartDate = null;
+let logFilterEndDate = null;
 
 // タイマー状態
 const timerState = {
@@ -208,6 +211,7 @@ async function initializeApp() {
     // 各種表示を更新
     renderTasks();
     updateTaskSelect();
+    initializeLogFilter();
     renderLogs();
     initializeMemo();
     updateStats();
@@ -290,7 +294,7 @@ function getLogs() {
 
 // 実行ログのサマリーを更新
 function updateTaskSummary() {
-    const logs = getLogs();
+    const logs = getFilteredLogs();
 
     // 合計経過時間を計算
     const totalDuration = logs.reduce((sum, log) => sum + (log.duration || 0), 0);
@@ -1044,7 +1048,7 @@ function renderLogs() {
     const container = document.getElementById('logContainer');
     if (!container) return;
 
-    const logs = getLogs();
+    const logs = getFilteredLogs();
 
     if (logs.length === 0) {
         container.innerHTML = '<p class="no-logs">実行ログがありません</p>';
@@ -2282,4 +2286,91 @@ function restoreTimer() {
     showTimerMessage('タイマー再開', 'success');
 
     return true;
+}
+
+// ログフィルターを初期化（今日の日付をデフォルトに）
+function initializeLogFilter() {
+    const today = getTodayString();
+    const startDateInput = document.getElementById('logStartDate');
+    const endDateInput = document.getElementById('logEndDate');
+
+    if (startDateInput) startDateInput.value = today;
+    if (endDateInput) endDateInput.value = today;
+
+    logFilterStartDate = today;
+    logFilterEndDate = today;
+}
+
+// ログをフィルタリング
+function filterLogs() {
+    const startDateInput = document.getElementById('logStartDate');
+    const endDateInput = document.getElementById('logEndDate');
+
+    logFilterStartDate = startDateInput.value || null;
+    logFilterEndDate = endDateInput.value || null;
+
+    renderLogs();
+    updateTaskSummary();
+}
+
+// フィルターをクリア（全期間表示）
+function clearLogFilter() {
+    const startDateInput = document.getElementById('logStartDate');
+    const endDateInput = document.getElementById('logEndDate');
+
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) endDateInput.value = '';
+
+    logFilterStartDate = null;
+    logFilterEndDate = null;
+
+    renderLogs();
+    updateTaskSummary();
+}
+
+// 日付を調整
+function adjustLogFilterDate(days) {
+    const startDateInput = document.getElementById('logStartDate');
+    const endDateInput = document.getElementById('logEndDate');
+
+    // 現在の開始日を基準に調整（未設定なら今日）
+    let baseDate;
+    if (startDateInput.value) {
+        baseDate = new Date(startDateInput.value);
+    } else {
+        baseDate = new Date();
+    }
+
+    baseDate.setDate(baseDate.getDate() + days);
+    const newDate = baseDate.toISOString().split('T')[0];
+
+    if (startDateInput) startDateInput.value = newDate;
+    if (endDateInput) endDateInput.value = newDate;
+
+    logFilterStartDate = newDate;
+    logFilterEndDate = newDate;
+
+    renderLogs();
+    updateTaskSummary();
+}
+
+// フィルター済みログを取得
+function getFilteredLogs() {
+    const logs = getLogs();
+
+    if (!logFilterStartDate && !logFilterEndDate) {
+        return logs;
+    }
+
+    return logs.filter(log => {
+        const logDate = log.startDateTime.split(' ')[0];
+
+        if (logFilterStartDate && logDate < logFilterStartDate) {
+            return false;
+        }
+        if (logFilterEndDate && logDate > logFilterEndDate) {
+            return false;
+        }
+        return true;
+    });
 }

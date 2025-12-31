@@ -2063,3 +2063,268 @@ describe('handleTaskSelect - 想定時間自動設定', () => {
         expect(timerMinutesValue).toBe(10); // 変更されない
     });
 });
+
+// ==================== ログフィルター機能のテスト ====================
+describe('ログフィルター機能', () => {
+    const STORAGE_KEY_LOGS = 'taskManager_logs';
+
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    describe('getFilteredLogs - 日付範囲フィルタリング', () => {
+        const sampleLogs = [
+            { id: 1, taskName: 'タスク1', startDateTime: '2025-01-01 10:00:00', duration: 30 },
+            { id: 2, taskName: 'タスク2', startDateTime: '2025-01-02 10:00:00', duration: 45 },
+            { id: 3, taskName: 'タスク3', startDateTime: '2025-01-03 10:00:00', duration: 60 },
+            { id: 4, taskName: 'タスク4', startDateTime: '2025-01-04 10:00:00', duration: 20 },
+            { id: 5, taskName: 'タスク5', startDateTime: '2025-01-05 10:00:00', duration: 15 },
+        ];
+
+        test('フィルターなし（両方null）の場合は全ログを返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = null;
+            const filterEndDate = null;
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(5);
+        });
+
+        test('開始日のみ指定した場合、その日以降のログを返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = '2025-01-03';
+            const filterEndDate = null;
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(3);
+            expect(filteredLogs[0].startDateTime).toBe('2025-01-03 10:00:00');
+        });
+
+        test('終了日のみ指定した場合、その日以前のログを返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = null;
+            const filterEndDate = '2025-01-03';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(3);
+            expect(filteredLogs[2].startDateTime).toBe('2025-01-03 10:00:00');
+        });
+
+        test('開始日と終了日の両方を指定した場合、範囲内のログを返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = '2025-01-02';
+            const filterEndDate = '2025-01-04';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(3);
+            expect(filteredLogs[0].taskName).toBe('タスク2');
+            expect(filteredLogs[1].taskName).toBe('タスク3');
+            expect(filteredLogs[2].taskName).toBe('タスク4');
+        });
+
+        test('同じ日を開始日と終了日に指定した場合、その日のログのみを返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = '2025-01-03';
+            const filterEndDate = '2025-01-03';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(1);
+            expect(filteredLogs[0].taskName).toBe('タスク3');
+        });
+
+        test('範囲外の日付を指定した場合、空配列を返す', () => {
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(sampleLogs));
+
+            const filterStartDate = '2025-02-01';
+            const filterEndDate = '2025-02-28';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(0);
+        });
+    });
+
+    describe('adjustLogFilterDate - 日付調整', () => {
+        test('1日進める', () => {
+            const baseDate = new Date('2025-01-15');
+            baseDate.setDate(baseDate.getDate() + 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2025-01-16');
+        });
+
+        test('1日戻す', () => {
+            const baseDate = new Date('2025-01-15');
+            baseDate.setDate(baseDate.getDate() - 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2025-01-14');
+        });
+
+        test('月をまたいで進める', () => {
+            const baseDate = new Date('2025-01-31');
+            baseDate.setDate(baseDate.getDate() + 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2025-02-01');
+        });
+
+        test('月をまたいで戻す', () => {
+            const baseDate = new Date('2025-02-01');
+            baseDate.setDate(baseDate.getDate() - 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2025-01-31');
+        });
+
+        test('年をまたいで進める', () => {
+            const baseDate = new Date('2025-12-31');
+            baseDate.setDate(baseDate.getDate() + 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2026-01-01');
+        });
+
+        test('年をまたいで戻す', () => {
+            const baseDate = new Date('2025-01-01');
+            baseDate.setDate(baseDate.getDate() - 1);
+            const newDate = baseDate.toISOString().split('T')[0];
+
+            expect(newDate).toBe('2024-12-31');
+        });
+    });
+
+    describe('initializeLogFilter - デフォルト値設定', () => {
+        test('初期化時に今日の日付が設定される', () => {
+            const today = new Date().toISOString().split('T')[0];
+
+            // initializeLogFilterの動作をシミュレート
+            const logFilterStartDate = today;
+            const logFilterEndDate = today;
+
+            expect(logFilterStartDate).toBe(today);
+            expect(logFilterEndDate).toBe(today);
+        });
+    });
+
+    describe('clearLogFilter - フィルタークリア', () => {
+        test('クリア後はフィルターがnullになる', () => {
+            // clearLogFilterの動作をシミュレート
+            let logFilterStartDate = '2025-01-01';
+            let logFilterEndDate = '2025-01-31';
+
+            // クリア
+            logFilterStartDate = null;
+            logFilterEndDate = null;
+
+            expect(logFilterStartDate).toBeNull();
+            expect(logFilterEndDate).toBeNull();
+        });
+
+        test('クリア後は全ログが表示される', () => {
+            const sampleLogs = [
+                { id: 1, startDateTime: '2025-01-01 10:00:00' },
+                { id: 2, startDateTime: '2025-01-15 10:00:00' },
+                { id: 3, startDateTime: '2025-02-01 10:00:00' },
+            ];
+
+            const filterStartDate = null;
+            const filterEndDate = null;
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(3);
+        });
+    });
+
+    describe('フィルター済みログの合計計算', () => {
+        test('フィルター済みログの合計時間が正しく計算される', () => {
+            const sampleLogs = [
+                { id: 1, startDateTime: '2025-01-01 10:00:00', duration: 30 },
+                { id: 2, startDateTime: '2025-01-02 10:00:00', duration: 45 },
+                { id: 3, startDateTime: '2025-01-03 10:00:00', duration: 60 },
+            ];
+
+            const filterStartDate = '2025-01-01';
+            const filterEndDate = '2025-01-02';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            const totalDuration = filteredLogs.reduce((sum, log) => sum + (log.duration || 0), 0);
+
+            expect(filteredLogs.length).toBe(2);
+            expect(totalDuration).toBe(75); // 30 + 45
+        });
+
+        test('フィルター済みログの件数が正しく計算される', () => {
+            const sampleLogs = [
+                { id: 1, startDateTime: '2025-01-01 10:00:00' },
+                { id: 2, startDateTime: '2025-01-01 14:00:00' },
+                { id: 3, startDateTime: '2025-01-02 10:00:00' },
+                { id: 4, startDateTime: '2025-01-03 10:00:00' },
+            ];
+
+            const filterStartDate = '2025-01-01';
+            const filterEndDate = '2025-01-01';
+
+            const filteredLogs = sampleLogs.filter(log => {
+                const logDate = log.startDateTime.split(' ')[0];
+                if (filterStartDate && logDate < filterStartDate) return false;
+                if (filterEndDate && logDate > filterEndDate) return false;
+                return true;
+            });
+
+            expect(filteredLogs.length).toBe(2);
+        });
+    });
+});

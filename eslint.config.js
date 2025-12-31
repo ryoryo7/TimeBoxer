@@ -20,7 +20,7 @@ export default [
                 {
                     argsIgnorePattern: '^_',
                     varsIgnorePattern:
-                        '^(addTask|toggleComplete|deleteTask|startEdit|cancelEdit|saveEdit|handleEditKeypress|handleDragStart|handleDragEnd|handleDragOver|handleDrop|handleDragLeave|handleTaskSelect|setPresetTime|adjustTime|startTimer|stopTimer|clearTimer|startLogEdit|saveLogEdit|cancelLogEdit|deleteLog|handleLogEditKeypress|onLogTaskChange|exportToCsv|exportLogsToCsv|deleteSelectedTasks|deleteAllTasks|deleteAllLogs|toggleMemoCollapse|selectMemoTab|addMemoTab|deleteMemoTab|startEditTabName|saveMemoContent|updateChart|toggleTimeline|updateTimeline|openTimelineModal|closeTimelineModal|showTimelineTooltip|hideTimelineTooltip|loadFromGoogleSheets|saveToGoogleSheets|saveAllToGoogleSheets|syncFromGoogleSheets)$',
+                        '^(addTask|toggleComplete|deleteTask|startEdit|cancelEdit|saveEdit|handleEditKeypress|handleDragStart|handleDragEnd|handleDragOver|handleDrop|handleDragLeave|handleTaskSelect|setPresetTime|adjustTime|startTimer|stopTimer|clearTimer|startLogEdit|saveLogEdit|cancelLogEdit|deleteLog|handleLogEditKeypress|onLogTaskChange|exportToCsv|exportLogsToCsv|deleteSelectedTasks|deleteAllTasks|deleteAllLogs|toggleMemoCollapse|selectMemoTab|addMemoTab|deleteMemoTab|startEditTabName|saveMemoContent|updateChart|toggleTimeline|updateTimeline|openTimelineModal|closeTimelineModal|showTimelineTooltip|hideTimelineTooltip|loadFromGoogleSheets|saveToGoogleSheets|saveAllToGoogleSheets|syncFromGoogleSheets|filterLogs|clearLogFilter|adjustLogFilterDate)$',
                 },
             ],
             'no-extra-semi': 'error',

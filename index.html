@@ -227,7 +227,20 @@
             <!-- 実行ログ（修正） -->
             <section class="log-section">
                 <div class="log-header">
-                    <h2>📊 実行ログ</h2>
+                    <h2>📋 実行ログ</h2>
+                    <div class="log-filter">
+                        <button class="btn-date-adjust" onclick="adjustLogFilterDate(-1)">
+                            −1日
+                        </button>
+                        <label for="logStartDate">期間:</label>
+                        <input type="date" id="logStartDate" onchange="filterLogs()" />
+                        <span>〜</span>
+                        <input type="date" id="logEndDate" onchange="filterLogs()" />
+                        <button class="btn-date-adjust" onclick="adjustLogFilterDate(1)">
+                            +1日
+                        </button>
+                        <button class="btn-filter-clear" onclick="clearLogFilter()">全期間</button>
+                    </div>
                     <div class="log-summary">
                         <span id="totalElapsedTime">合計経過時間: 0分</span>
                         <span id="totalLogCount">件数: 0件</span>

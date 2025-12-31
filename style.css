@@ -1389,3 +1389,55 @@ h2 {
     border-radius: 4px;
     font-weight: 500;
 }
+
+/* ログフィルター */
+.log-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.log-filter label {
+    color: #666;
+}
+
+.log-filter input[type='date'] {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.log-filter span {
+    color: #666;
+}
+
+.btn-filter-clear {
+    padding: 0.25rem 0.5rem;
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.btn-filter-clear:hover {
+    background-color: #4b5563;
+}
+
+.btn-date-adjust {
+    padding: 0.25rem 0.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.btn-date-adjust:hover {
+    background-color: #2563eb;
+}
