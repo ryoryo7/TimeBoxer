@@ -1441,3 +1441,8 @@ h2 {
 .btn-date-adjust:hover {
     background-color: #2563eb;
 }
+/* タスク名を選択可能にする */
+.task-name-text {
+    user-select: text;
+    cursor: text;
+}

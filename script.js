@@ -674,7 +674,7 @@ function renderTasks() {
                     <td>
                         <span class="priority-badge ${priorityClass}">${task.priority}</span>
                     </td>
-                    <td>${escapeHtml(task.name)}</td>
+                    <td><span class="task-name-text" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ondragstart="return false">${escapeHtml(task.name)}</span></td>
                     <td>${formatTime(task.estimatedTime)}</td>
                     <td>${task.targetDate}</td>
                     <td>
