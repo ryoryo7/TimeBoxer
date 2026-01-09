@@ -509,37 +509,101 @@ function handleEditKeypress(event, taskId) {
 }
 
 // ==================== ドラッグ&ドロップ ====================
+// ドラッグ開始
 function handleDragStart(event, taskId) {
     draggedTaskId = taskId;
-    event.target.closest('tr').classList.add('dragging');
     event.dataTransfer.effectAllowed = 'move';
+    event.target.closest('tr').classList.add('dragging');
 }
 
-function handleDragEnd(_event) {
+// ドラッグ終了
+function handleDragEnd(event) {
     draggedTaskId = null;
-    document.querySelectorAll('.task-table tbody tr').forEach(row => {
-        row.classList.remove('dragging', 'drag-over');
-    });
+    event.target.closest('tr')?.classList.remove('dragging');
+    // 全てのインジケーターをクリア
+    document
+        .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
+        .forEach(el => {
+            el.classList.remove('drop-indicator-above', 'drop-indicator-below', 'drag-over');
+        });
 }
 
-function handleDragOver(event) {
+// ドラッグオーバー
+function handleDragOver(event, targetTaskId) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    const row = event.target.closest('tr');
-    if (row) {
-        row.classList.add('drag-over');
+
+    if (draggedTaskId === null || draggedTaskId === targetTaskId) return;
+
+    const targetRow = event.target.closest('tr');
+    if (!targetRow) return;
+
+    // マウス位置に応じてインジケーターを表示
+    const rect = targetRow.getBoundingClientRect();
+    const mouseY = event.clientY;
+    const threshold = rect.top + rect.height / 2;
+
+    const isAbove = mouseY < threshold;
+    const hasAbove = targetRow.classList.contains('drop-indicator-above');
+    const hasBelow = targetRow.classList.contains('drop-indicator-below');
+
+    // 状態が変わった時だけクラスを更新
+    if (isAbove && !hasAbove) {
+        // 他の行のインジケーターをクリア
+        document
+            .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
+            .forEach(el => {
+                if (el !== targetRow) {
+                    el.classList.remove(
+                        'drop-indicator-above',
+                        'drop-indicator-below',
+                        'drag-over'
+                    );
+                }
+            });
+        targetRow.classList.add('drag-over', 'drop-indicator-above');
+        targetRow.classList.remove('drop-indicator-below');
+    } else if (!isAbove && !hasBelow) {
+        // 他の行のインジケーターをクリア
+        document
+            .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
+            .forEach(el => {
+                if (el !== targetRow) {
+                    el.classList.remove(
+                        'drop-indicator-above',
+                        'drop-indicator-below',
+                        'drag-over'
+                    );
+                }
+            });
+        targetRow.classList.add('drag-over', 'drop-indicator-below');
+        targetRow.classList.remove('drop-indicator-above');
     }
 }
 
+// ドラッグリーブ
 function handleDragLeave(event) {
-    const row = event.target.closest('tr');
-    if (row) {
-        row.classList.remove('drag-over');
+    const targetRow = event.target.closest('tr');
+    if (targetRow) {
+        targetRow.classList.remove('drop-indicator-above', 'drop-indicator-below', 'drag-over');
     }
 }
 
+// ドロップ
 function handleDrop(event, targetTaskId) {
     event.preventDefault();
+
+    // インジケーターをクリア
+    document
+        .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over, .dragging')
+        .forEach(el => {
+            el.classList.remove(
+                'drop-indicator-above',
+                'drop-indicator-below',
+                'drag-over',
+                'dragging'
+            );
+        });
 
     if (draggedTaskId === null || draggedTaskId === targetTaskId) return;
 
