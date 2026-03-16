@@ -1,6 +1,6 @@
 // Google Apps Script API URL
 const API_URL =
-    'https://script.google.com/macros/s/AKfycby03v0jviQuzkumkEqXN0k9TXF0X5i4TY-DeLQfKd9xabtF5vk5ZRcyiZqIR8_trEiI/exec';
+    'https://script.google.com/macros/s/AKfycby-TItXSiEJL9ixqddz-h0-FkuBKe7cmpSD9lmiuk7YhauovFZweiaB2qa8IF0i1QkU/exec';
 
 // データ同期フラグ
 let isSyncing = false;
@@ -22,6 +22,35 @@ async function loadFromGoogleSheets() {
         return null;
     }
 }
+
+// Google Sheets に追記する（既存データを消さない）
+async function appendToGoogleSheets(sheetName, rows) {
+    try {
+        const params = new URLSearchParams();
+        params.append('action', 'append');
+        params.append('sheet', sheetName);
+        params.append('data', JSON.stringify(rows));
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: params,
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            console.error('Google Sheets追記エラー:', result.error);
+        } else {
+            console.log(`Google Sheets [${sheetName}] に追記完了`);
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Google Sheets接続エラー:', error);
+        return null;
+    }
+}
+
 
 // Google Sheets にデータを保存する
 async function saveToGoogleSheets(sheetName, data) {
@@ -398,9 +427,20 @@ function toggleComplete(taskId) {
 }
 
 function deleteTask(taskId) {
-    const tasks = getTasks().filter(t => t.id !== taskId);
-    renumberPriorities(tasks);
-    saveTasks(tasks);
+    const tasks = getTasks();
+    const deletedTask = tasks.find(t => t.id === taskId);
+
+    // 削除対象を tasks_archive シートに追記
+    if (deletedTask) {
+        appendToGoogleSheets('tasks_archive', [{
+            ...deletedTask,
+            deletedAt: new Date().toISOString(),
+        }]);
+    }
+
+    const remaining = tasks.filter(t => t.id !== taskId);
+    renumberPriorities(remaining);
+    saveTasks(remaining);
     renderTasks();
     updateStats();
     updateTaskSelect();
@@ -414,9 +454,23 @@ function deleteSelectedTasks() {
     }
 
     const idsToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.taskId));
-    const tasks = getTasks().filter(t => !idsToDelete.includes(t.id));
-    renumberPriorities(tasks);
-    saveTasks(tasks);
+    const tasks = getTasks();
+
+    // 削除対象を tasks_archive シートに追記
+    const deletedTasks = tasks
+        .filter(t => idsToDelete.includes(t.id))
+        .map(t => ({
+            ...t,
+            deletedAt: new Date().toISOString(),
+        }));
+
+    if (deletedTasks.length > 0) {
+        appendToGoogleSheets('tasks_archive', deletedTasks);
+    }
+
+    const remaining = tasks.filter(t => !idsToDelete.includes(t.id));
+    renumberPriorities(remaining);
+    saveTasks(remaining);
     renderTasks();
     updateStats();
     updateTaskSelect();
@@ -425,6 +479,17 @@ function deleteSelectedTasks() {
 function deleteAllTasks() {
     if (!confirm('本当に全てのタスクを削除しますか？\nこの操作は取り消せません。')) {
         return;
+    }
+
+    const tasks = getTasks();
+
+    // 全タスクを tasks_archive シートに追記
+    if (tasks.length > 0) {
+        const archived = tasks.map(t => ({
+            ...t,
+            deletedAt: new Date().toISOString(),
+        }));
+        appendToGoogleSheets('tasks_archive', archived);
     }
 
     saveTasks([]);
