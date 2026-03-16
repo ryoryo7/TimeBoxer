@@ -1,6 +1,6 @@
 // Google Apps Script API URL
 const API_URL =
-    'https://script.google.com/macros/s/AKfycby-TItXSiEJL9ixqddz-h0-FkuBKe7cmpSD9lmiuk7YhauovFZweiaB2qa8IF0i1QkU/exec';
+    'https://script.google.com/macros/s/AKfycby03v0jviQuzkumkEqXN0k9TXF0X5i4TY-DeLQfKd9xabtF5vk5ZRcyiZqIR8_trEiI/exec';
 
 // データ同期フラグ
 let isSyncing = false;
@@ -23,40 +23,7 @@ async function loadFromGoogleSheets() {
     }
 }
 
-// Google Sheets に追記する（既存データを消さない）
-async function appendToGoogleSheets(sheetName, rows) {
-    if (isSyncing) return;
-    isSyncing = true;
-
-    try {
-        const params = new URLSearchParams();
-        params.append('action', 'append');
-        params.append('sheet', sheetName);
-        params.append('data', JSON.stringify(rows));
-
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            body: params,
-        });
-
-        const result = await response.json();
-
-        if (result.error) {
-            console.error('Google Sheets追記エラー:', result.error);
-        } else {
-            console.log(`Google Sheets [${sheetName}] に追記完了`);
-        }
-
-        return result;
-    } catch (error) {
-        console.error('Google Sheets接続エラー:', error);
-        return null;
-    } finally {
-        isSyncing = false;
-    }
-}
-
-// Google Sheets にデータを保存する（上書き）
+// Google Sheets にデータを保存する
 async function saveToGoogleSheets(sheetName, data) {
     if (isSyncing) return;
     isSyncing = true;
@@ -87,29 +54,70 @@ async function saveToGoogleSheets(sheetName, data) {
     }
 }
 
+// 全データをGoogle Sheetsに保存
+async function saveAllToGoogleSheets() {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    try {
+        const allData = {
+            tasks: getTasks(),
+            logs: getLogs(),
+            memos: getMemoData(),
+        };
+
+        const params = new URLSearchParams();
+        params.append('action', 'writeAll');
+        params.append('data', JSON.stringify(allData));
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: params,
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            console.error('Google Sheets保存エラー:', result.error);
+        } else {
+            console.log('Google Sheetsに保存完了');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Google Sheets接続エラー:', error);
+        return null;
+    } finally {
+        isSyncing = false;
+    }
+}
+
 // Google SheetsからLocalStorageに同期
 async function syncFromGoogleSheets() {
     const data = await loadFromGoogleSheets();
     console.log('Google Sheetsからのデータ:', data);
 
+    // ログの中身を詳細に確認
     if (data && data.logs) {
         console.log('logs詳細:', JSON.stringify(data.logs, null, 2));
     }
 
     if (data) {
         if (data.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
-            localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(data.tasks));
+            saveTasks(data.tasks);
         }
         if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(data.logs));
+            saveLogs(data.logs);
         }
         if (data.memos && Array.isArray(data.memos) && data.memos.length > 0) {
+            // 各行をメモとして復元
             const memos = data.memos.map(row => ({
                 id: row.id || Date.now(),
                 name: row.name || 'メモ',
                 content: row.content || '',
             }));
 
+            // LocalStorageから既存の状態を取得（activeTabId, isCollapsed）
             const existingData = getMemoData();
 
             const memoData = {
@@ -118,6 +126,7 @@ async function syncFromGoogleSheets() {
                 isCollapsed: existingData.isCollapsed || false,
             };
 
+            // LocalStorageのみに保存（Google Sheetsへの再保存は不要）
             localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(memoData));
         }
 
@@ -136,7 +145,9 @@ const STORAGE_KEY_LOGS = 'taskManager_logs';
 let editingTaskId = null;
 let editingLogId = null;
 let draggedTaskId = null;
+// 通知音のグローバル変数
 let notificationAudio = null;
+// ログフィルター用のグローバル変数
 let logFilterStartDate = null;
 let logFilterEndDate = null;
 
@@ -161,13 +172,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
+// アプリケーション初期化
 async function initializeApp() {
+    // 今日の日付をデフォルト設定
     const today = getTodayString();
     const targetDateInput = document.getElementById('targetDate');
     if (targetDateInput) {
         targetDateInput.value = today;
     }
 
+    // Google Sheetsからデータを同期
     const statusEl = document.createElement('div');
     statusEl.id = 'syncStatus';
     statusEl.textContent = '同期中...';
@@ -187,12 +201,14 @@ async function initializeApp() {
 
     setTimeout(() => statusEl.remove(), 2000);
 
+    // タイマー入力の変更監視
     const timerMinutesInput = document.getElementById('timerMinutes');
     if (timerMinutesInput) {
         timerMinutesInput.addEventListener('change', updateTimerDisplay);
         timerMinutesInput.addEventListener('input', updateTimerDisplay);
     }
 
+    // 各種表示を更新
     renderTasks();
     updateTaskSelect();
     initializeLogFilter();
@@ -276,15 +292,17 @@ function getLogs() {
     return data ? JSON.parse(data) : [];
 }
 
-function saveLogs(logs) {
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
-}
-
+// 実行ログのサマリーを更新
 function updateTaskSummary() {
     const logs = getFilteredLogs();
+
+    // 合計経過時間を計算
     const totalDuration = logs.reduce((sum, log) => sum + (log.duration || 0), 0);
+
+    // 件数
     const logCount = logs.length;
 
+    // 表示を更新
     const totalElapsedTimeEl = document.getElementById('totalElapsedTime');
     const totalLogCountEl = document.getElementById('totalLogCount');
 
@@ -295,6 +313,11 @@ function updateTaskSummary() {
     if (totalLogCountEl) {
         totalLogCountEl.textContent = `件数: ${logCount}件`;
     }
+}
+
+function saveLogs(logs) {
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+    saveToGoogleSheets('logs', logs);
 }
 
 // ==================== タスク操作 ====================
@@ -311,8 +334,10 @@ function addTask(event) {
 
     const tasks = getTasks();
 
+    // 優先順位の決定
     let priority = priorityInput.value ? parseInt(priorityInput.value) : null;
     if (priority === null) {
+        // 未完了タスクの最大優先順位を取得して+1
         const incompleteTasks = tasks.filter(t => !t.completed);
         if (incompleteTasks.length === 0) {
             priority = 1;
@@ -321,6 +346,7 @@ function addTask(event) {
             priority = maxPriority + 1;
         }
     } else {
+        // 指定された優先順位に挿入、他を繰り下げ
         tasks.forEach(task => {
             if (!task.completed && task.priority >= priority) {
                 task.priority++;
@@ -341,6 +367,7 @@ function addTask(event) {
     tasks.push(newTask);
     saveTasks(tasks);
 
+    // フォームリセット
     nameInput.value = '';
     priorityInput.value = '';
     timeInput.value = '30';
@@ -359,6 +386,7 @@ function toggleComplete(taskId) {
         task.completed = !task.completed;
 
         if (task.completed) {
+            // 完了したら優先順位を再採番
             renumberPriorities(tasks);
         }
 
@@ -444,7 +472,9 @@ function saveEdit(taskId) {
 
     const newPriority = parseInt(priorityInput.value) || 1;
 
+    // 優先順位が変更された場合の処理
     if (newPriority !== task.priority) {
+        // 他のタスクの優先順位を調整
         tasks.forEach(t => {
             if (t.id !== taskId && !t.completed) {
                 if (newPriority <= t.priority && t.priority < task.priority) {
@@ -479,15 +509,18 @@ function handleEditKeypress(event, taskId) {
 }
 
 // ==================== ドラッグ&ドロップ ====================
+// ドラッグ開始
 function handleDragStart(event, taskId) {
     draggedTaskId = taskId;
     event.dataTransfer.effectAllowed = 'move';
     event.target.closest('tr').classList.add('dragging');
 }
 
+// ドラッグ終了
 function handleDragEnd(event) {
     draggedTaskId = null;
     event.target.closest('tr')?.classList.remove('dragging');
+    // 全てのインジケーターをクリア
     document
         .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
         .forEach(el => {
@@ -495,6 +528,7 @@ function handleDragEnd(event) {
         });
 }
 
+// ドラッグオーバー
 function handleDragOver(event, targetTaskId) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -504,6 +538,7 @@ function handleDragOver(event, targetTaskId) {
     const targetRow = event.target.closest('tr');
     if (!targetRow) return;
 
+    // マウス位置に応じてインジケーターを表示
     const rect = targetRow.getBoundingClientRect();
     const mouseY = event.clientY;
     const threshold = rect.top + rect.height / 2;
@@ -512,7 +547,9 @@ function handleDragOver(event, targetTaskId) {
     const hasAbove = targetRow.classList.contains('drop-indicator-above');
     const hasBelow = targetRow.classList.contains('drop-indicator-below');
 
+    // 状態が変わった時だけクラスを更新
     if (isAbove && !hasAbove) {
+        // 他の行のインジケーターをクリア
         document
             .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
             .forEach(el => {
@@ -527,6 +564,7 @@ function handleDragOver(event, targetTaskId) {
         targetRow.classList.add('drag-over', 'drop-indicator-above');
         targetRow.classList.remove('drop-indicator-below');
     } else if (!isAbove && !hasBelow) {
+        // 他の行のインジケーターをクリア
         document
             .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over')
             .forEach(el => {
@@ -543,6 +581,7 @@ function handleDragOver(event, targetTaskId) {
     }
 }
 
+// ドラッグリーブ
 function handleDragLeave(event) {
     const targetRow = event.target.closest('tr');
     if (targetRow) {
@@ -550,9 +589,11 @@ function handleDragLeave(event) {
     }
 }
 
+// ドロップ
 function handleDrop(event, targetTaskId) {
     event.preventDefault();
 
+    // インジケーターをクリア
     document
         .querySelectorAll('.drop-indicator-above, .drop-indicator-below, .drag-over, .dragging')
         .forEach(el => {
@@ -577,13 +618,16 @@ function handleDrop(event, targetTaskId) {
 
     if (oldPriority === newPriority) return;
 
+    // 挿入方式：ドラッグしたタスクをターゲット位置に挿入し、他を繰り下げ/繰り上げ
     if (oldPriority > newPriority) {
+        // 上に移動：newPriority以上、oldPriority未満のタスクを+1
         tasks.forEach(task => {
             if (!task.completed && task.priority >= newPriority && task.priority < oldPriority) {
                 task.priority += 1;
             }
         });
     } else {
+        // 下に移動：oldPriorityより大きく、newPriority以下のタスクを-1
         tasks.forEach(task => {
             if (!task.completed && task.priority > oldPriority && task.priority <= newPriority) {
                 task.priority -= 1;
@@ -611,6 +655,7 @@ function renderTasks() {
         return;
     }
 
+    // ソート: 未完了を先、その中で優先順位昇順
     const sortedTasks = [...tasks].sort((a, b) => {
         if (a.completed !== b.completed) {
             return a.completed ? 1 : -1;
@@ -745,6 +790,7 @@ function updateTaskSelect() {
     select.innerHTML = html;
 }
 
+// タスク選択時に想定時間を自動設定
 function handleTaskSelect() {
     const taskSelect = document.getElementById('taskSelect');
     const timerMinutes = document.getElementById('timerMinutes');
@@ -754,6 +800,7 @@ function handleTaskSelect() {
     const selectedOption = taskSelect.options[taskSelect.selectedIndex];
     const estimatedTime = parseInt(selectedOption.dataset.estimated) || 0;
 
+    // 想定時間が設定されている場合のみ自動入力
     if (estimatedTime > 0) {
         timerMinutes.value = estimatedTime;
         updateTimerDisplay();
@@ -800,6 +847,7 @@ function startTimer() {
     }
 
     if (timerState.isPaused) {
+        // 一時停止からの再開
         timerState.isPaused = false;
         timerState.isRunning = true;
         timerState.intervalId = setInterval(timerTick, 1000);
@@ -810,11 +858,13 @@ function startTimer() {
         return;
     }
 
+    // 新規開始
     const selectedOption = taskSelect.options[taskSelect.selectedIndex];
     const taskId = taskSelect.value === 'interrupt' ? 'interrupt' : parseInt(taskSelect.value);
     const taskName = selectedOption.text;
     const estimatedTime = parseInt(selectedOption.dataset.estimated) || 0;
 
+    // 達成度を取得（0-100の範囲でクランプ）
     let achievement = achievementInput.value ? parseInt(achievementInput.value) : null;
     if (achievement !== null) {
         achievement = Math.max(0, Math.min(100, achievement));
@@ -831,8 +881,10 @@ function startTimer() {
     timerState.achievement = achievement;
     timerState.estimatedTime = estimatedTime;
 
+    // 終了予定時刻を計算
     timerState.endTime = new Date(timerState.startTime.getTime() + timerState.totalSeconds * 1000);
 
+    // UI更新
     document.getElementById('startTimeDisplay').textContent =
         `開始: ${formatTimeHHMM(timerState.startTime)}`;
     document.getElementById('endTimeDisplay').textContent =
@@ -853,12 +905,14 @@ function formatTimeHHMM(date) {
 }
 
 function timerTick() {
+    // 終了時刻との差分から残り時間を計算（バックグラウンド対応）
     const now = new Date();
     const remainingMs = timerState.endTime.getTime() - now.getTime();
     timerState.remainingSeconds = Math.ceil(remainingMs / 1000);
 
     if (timerState.remainingSeconds <= 0) {
         timerState.remainingSeconds = 0;
+        // タイマー表示を更新
         const display = document.getElementById('timerDisplay');
         if (display) {
             display.textContent = '00:00';
@@ -867,6 +921,7 @@ function timerTick() {
         return;
     }
 
+    // タイマー表示を更新
     const display = document.getElementById('timerDisplay');
     if (display) {
         display.textContent = formatTimerDisplay(timerState.remainingSeconds);
@@ -876,11 +931,14 @@ function timerTick() {
 function completeTimer() {
     clearInterval(timerState.intervalId);
 
+    // ログ保存
     saveTimerLog(true);
 
+    // 通知
     playNotificationSound();
     showTimerMessage('🎉 タイマー完了！', 'success');
 
+    // ブラウザ通知
     if (Notification.permission === 'granted') {
         new Notification('タイマー完了', {
             body: `${timerState.taskName} のタイマーが完了しました`,
@@ -900,16 +958,19 @@ function stopTimer() {
     clearInterval(timerState.intervalId);
     timerState.isRunning = false;
 
-    stopNotificationSound();
+    stopNotificationSound(); // 通知音を停止
 
+    // ボタンの状態を更新
     document.getElementById('timerStartBtn').disabled = false;
     document.getElementById('timerStopBtn').disabled = true;
 
+    // ログを保存
     saveTimerLog(false);
     clearTimerState();
 }
 
 function clearTimer() {
+    // インターバルを停止
     if (timerState.intervalId) {
         clearInterval(timerState.intervalId);
         timerState.intervalId = null;
@@ -919,8 +980,9 @@ function clearTimer() {
     timerState.isPaused = false;
     timerState.remainingSeconds = 0;
 
-    stopNotificationSound();
+    stopNotificationSound(); // 通知音を停止
 
+    // 表示をリセット（要素の存在チェック付き）
     const timerDisplay = document.getElementById('timerDisplay');
     const timerSchedule = document.getElementById('timerSchedule');
     const timerMessage = document.getElementById('timerMessage');
@@ -929,10 +991,14 @@ function clearTimer() {
     if (timerSchedule) timerSchedule.textContent = '';
     if (timerMessage) timerMessage.textContent = '';
 
+    // ボタンの状態をリセット
     document.getElementById('timerStartBtn').disabled = false;
     document.getElementById('timerStopBtn').disabled = true;
 
+    // LocalStorageからタイマー状態を削除
     clearTimerState();
+
+    // タイマー状態をリセット
     resetTimerState();
 }
 
@@ -959,6 +1025,7 @@ function resetTimerState() {
 function saveTimerLog(completed) {
     const logs = getLogs();
 
+    // 最新の入力値を取得
     const taskSelect = document.getElementById('taskSelect');
     const taskDetailInput = document.getElementById('taskDetail');
     const achievementInput = document.getElementById('achievement');
@@ -992,10 +1059,6 @@ function saveTimerLog(completed) {
 
     logs.push(log);
     saveLogs(logs);
-
-    // Google Sheets には新規ログだけ追記
-    appendToGoogleSheets('logs', [log]);
-
     renderLogs();
 }
 
@@ -1010,12 +1073,13 @@ function showTimerMessage(message, type) {
     }
 }
 
+// 通知音を再生（繰り返し）
 function playNotificationSound() {
     try {
-        stopNotificationSound();
+        stopNotificationSound(); // 既存の再生を停止
         notificationAudio = new Audio('成功音.mp3');
         notificationAudio.volume = 0.5;
-        notificationAudio.loop = true;
+        notificationAudio.loop = true; // 繰り返し再生
         notificationAudio.play().catch(e => {
             console.log('通知音の再生に失敗しました:', e);
         });
@@ -1024,6 +1088,7 @@ function playNotificationSound() {
     }
 }
 
+// 通知音を停止
 function stopNotificationSound() {
     if (notificationAudio) {
         notificationAudio.pause();
@@ -1055,6 +1120,7 @@ function renderLogs() {
         return;
     }
 
+    // 新しい順（降順）でソート
     const sortedLogs = [...logs].sort((a, b) => {
         return parseDateTime(b.startDateTime).getTime() - parseDateTime(a.startDateTime).getTime();
     });
@@ -1085,6 +1151,7 @@ function renderLogs() {
         const overrunClass = overrunTime !== null && overrunTime > 0 ? 'overrun-positive' : '';
 
         if (editingLogId === log.id) {
+            // 編集モード
             const tasks = getTasks();
             let taskOptions = '<option value="interrupt">割り込みタスク</option>';
 
@@ -1093,6 +1160,7 @@ function renderLogs() {
                 taskOptions += `<option value="${task.id}" data-estimated="${task.estimatedTime}" ${selected}>${escapeHtml(task.name)}</option>`;
             });
 
+            // 削除済みタスクの場合
             const taskExists = log.taskId === 'interrupt' || tasks.some(t => t.id === log.taskId);
             if (!taskExists) {
                 taskOptions += `<option value="${log.taskId}" selected>${escapeHtml(log.taskName)}（削除済み）</option>`;
@@ -1120,6 +1188,7 @@ function renderLogs() {
                 </tr>
             `;
         } else {
+            // 表示モード
             html += `
                 <tr>
                     <td class="log-datetime">${log.startDateTime}</td>
@@ -1147,7 +1216,6 @@ function renderLogs() {
 
     container.innerHTML = html;
 }
-
 function startLogEdit(logId) {
     if (editingLogId !== null) {
         cancelLogEdit();
@@ -1181,14 +1249,16 @@ function saveLogEdit(logId) {
     const startDateTime = startDateTimeEl.value;
     const endDateTime = endDateTimeEl.value;
 
+    // 開始日時と終了日時から実行時間を再計算
     const startDate = parseDateTime(startDateTime);
     const endDate = parseDateTime(endDateTime);
     let duration = 0;
 
     if (startDate && endDate && endDate > startDate) {
         const durationMs = endDate.getTime() - startDate.getTime();
-        duration = parseFloat((durationMs / 1000 / 60).toFixed(1));
+        duration = parseFloat((durationMs / 1000 / 60).toFixed(1)); // 分単位、小数点1桁
     } else {
+        // 無効な日時の場合は元の値を維持するか、0にする
         const durationEl = document.getElementById(`edit-log-duration-${logId}`);
         duration = durationEl ? parseFloat(durationEl.value) || 0 : logs[logIndex].duration;
     }
@@ -1211,6 +1281,7 @@ function saveLogEdit(logId) {
         achievement = Math.max(0, Math.min(100, achievement));
     }
 
+    // ログを更新
     logs[logIndex] = {
         ...logs[logIndex],
         taskId: taskId,
@@ -1219,7 +1290,7 @@ function saveLogEdit(logId) {
         endDateTime: endDateTime,
         taskDetail: taskDetail,
         estimatedTime: estimatedTime,
-        duration: duration,
+        duration: duration, // 再計算された実行時間
         achievement: achievement,
     };
 
@@ -1254,8 +1325,9 @@ function exportToCsv() {
     const tasks = getTasks();
     const logs = getLogs();
 
-    let csv = '\uFEFF';
+    let csv = '\uFEFF'; // BOM
 
+    // タスク一覧セクション
     csv += '=== タスク一覧 ===\n';
     csv += 'タスク名,優先順位,想定時間(分),対象日,完了,作成日\n';
 
@@ -1265,6 +1337,7 @@ function exportToCsv() {
 
     csv += '\n';
 
+    // 実行ログセクション
     csv += '=== 実行ログ ===\n';
     csv += '開始日時,終了日時,タスク名,詳細,想定時間(分),実行時間(分),タスク合計(分),達成度(%)\n';
 
@@ -1273,6 +1346,7 @@ function exportToCsv() {
         csv += `${log.startDateTime},${log.endDateTime},"${escapeCsvField(log.taskName)}","${escapeCsvField(log.taskDetail || '')}",${log.estimatedTime},${log.duration},${taskTotal.toFixed(1)},${log.achievement !== null ? log.achievement : ''}\n`;
     });
 
+    // ダウンロード
     const now = new Date();
     const fileName = `tasks_${formatDateTimeForFileName(now)}.csv`;
     downloadCsv(csv, fileName);
@@ -1287,6 +1361,7 @@ function downloadCsv(csv, fileName) {
     URL.revokeObjectURL(link.href);
 }
 
+// 時間調整
 function adjustTime(minutes) {
     const input = document.getElementById('timerMinutes');
     if (!input) return;
@@ -1294,12 +1369,14 @@ function adjustTime(minutes) {
     const currentValue = parseInt(input.value) || 0;
     let newValue = currentValue + minutes;
 
+    // 最小1分、最大999分
     newValue = Math.max(1, Math.min(999, newValue));
 
     input.value = newValue;
     updateTimerDisplay();
 }
 
+// 実行ログCSV出力
 function exportLogsToCsv() {
     const logs = getLogs();
 
@@ -1311,11 +1388,14 @@ function exportLogsToCsv() {
     const now = new Date();
     const fileName = `logs_${formatDateTimeForFileName(now)}.csv`;
 
+    // BOM付きUTF-8
     let csv = '\uFEFF';
 
+    // ヘッダー
     csv +=
         '開始日時,終了日時,タスク名,詳細,想定時間(分),実行時間(分),タスク合計(分),達成度(%),超過時間(分)\n';
 
+    // データ行
     logs.forEach((log, index) => {
         const taskTotal = calculateTaskTotal(logs, log.taskId, index);
         const overrunTime = calculateOverrunTime(log.estimatedTime, taskTotal);
@@ -1338,6 +1418,7 @@ function exportLogsToCsv() {
 // ==================== メモ帳機能 ====================
 const STORAGE_KEY_MEMOS = 'taskManager_memos';
 
+// メモデータの取得
 function getMemoData() {
     const data = localStorage.getItem(STORAGE_KEY_MEMOS);
     if (!data) {
@@ -1349,6 +1430,7 @@ function getMemoData() {
     }
     const parsed = JSON.parse(data);
 
+    // memosが配列でない、または空の場合はデフォルト値を返す
     if (!parsed.memos || !Array.isArray(parsed.memos) || parsed.memos.length === 0) {
         return {
             memos: [{ id: 1, name: 'メモ1', content: '' }],
@@ -1360,13 +1442,23 @@ function getMemoData() {
     return parsed;
 }
 
+// メモデータの保存
 function saveMemoData(data) {
     localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(data));
+    // 各メモを個別の行として保存
+    const rows = data.memos.map(memo => ({
+        id: memo.id,
+        name: memo.name,
+        content: memo.content,
+    }));
+    saveToGoogleSheets('memos', rows);
 }
 
+// メモ帳の初期化
 function initializeMemo() {
     const data = getMemoData();
 
+    // 折りたたみ状態を復元
     if (data.isCollapsed) {
         const content = document.getElementById('memoContent');
         const toggle = document.getElementById('memoToggle');
@@ -1378,6 +1470,7 @@ function initializeMemo() {
     loadActiveMemoContent();
 }
 
+// タブの描画
 function renderMemoTabs() {
     const data = getMemoData();
     const tabsContainer = document.getElementById('memoTabs');
@@ -1402,11 +1495,14 @@ function renderMemoTabs() {
     tabsContainer.innerHTML = html;
 }
 
+// タブ選択
 function selectMemoTab(tabId) {
     const data = getMemoData();
 
+    // 現在のメモ内容を保存
     saveMemoContent();
 
+    // アクティブタブを変更
     data.activeTabId = tabId;
     saveMemoData(data);
 
@@ -1414,6 +1510,7 @@ function selectMemoTab(tabId) {
     loadActiveMemoContent();
 }
 
+// アクティブなメモの内容を読み込み
 function loadActiveMemoContent() {
     const data = getMemoData();
     const textarea = document.getElementById('memoTextarea');
@@ -1423,6 +1520,7 @@ function loadActiveMemoContent() {
     textarea.value = activeMemo ? activeMemo.content : '';
 }
 
+// メモ内容の保存
 function saveMemoContent() {
     const data = getMemoData();
     const textarea = document.getElementById('memoTextarea');
@@ -1430,59 +1528,50 @@ function saveMemoContent() {
 
     const activeMemo = data.memos.find(m => m.id === data.activeTabId);
     if (activeMemo) {
-        const newContent = textarea.value;
-        const oldContent = activeMemo.content;
-
-        activeMemo.content = newContent;
-        localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(data));
-
-        // 内容が変わった場合のみ Google Sheets に追記
-        if (newContent !== oldContent) {
-            appendToGoogleSheets('memos', [{
-                id: activeMemo.id,
-                name: activeMemo.name,
-                content: activeMemo.content,
-                updatedAt: new Date().toISOString(),
-            }]);
-        }
+        activeMemo.content = textarea.value;
+        saveMemoData(data);
     }
 }
 
+// タブ追加
 function addMemoTab() {
     const data = getMemoData();
 
+    // 最大10個まで
     if (data.memos.length >= 10) {
         alert('メモは最大10個までです');
         return;
     }
 
+    // 現在のメモ内容を保存
     saveMemoContent();
 
+    // 新しいIDを生成
     const maxId = data.memos.length > 0 ? Math.max(...data.memos.map(m => m.id)) : 0;
     const newId = maxId + 1;
 
-    const newMemo = {
+    // 新しいメモを追加
+    data.memos.push({
         id: newId,
         name: `メモ${newId}`,
         content: '',
-    };
+    });
 
-    data.memos.push(newMemo);
+    // 新しいタブをアクティブに
     data.activeTabId = newId;
-    localStorage.setItem(STORAGE_KEY_MEMOS, JSON.stringify(data));
-
-    // Google Sheets に新規メモだけ追記
-    appendToGoogleSheets('memos', [newMemo]);
+    saveMemoData(data);
 
     renderMemoTabs();
     loadActiveMemoContent();
 }
 
+// タブ削除
 function deleteMemoTab(tabId, event) {
     event.stopPropagation();
 
     const data = getMemoData();
 
+    // 最後の1つは削除できない
     if (data.memos.length <= 1) {
         alert('最後のメモは削除できません');
         return;
@@ -1492,11 +1581,13 @@ function deleteMemoTab(tabId, event) {
         return;
     }
 
+    // メモを削除
     const index = data.memos.findIndex(m => m.id === tabId);
     if (index === -1) return;
 
     data.memos.splice(index, 1);
 
+    // 削除したのがアクティブタブだった場合、別のタブをアクティブに
     if (data.activeTabId === tabId) {
         data.activeTabId = data.memos[0].id;
     }
@@ -1506,6 +1597,7 @@ function deleteMemoTab(tabId, event) {
     loadActiveMemoContent();
 }
 
+// タブ名編集開始
 function startEditTabName(tabId) {
     const data = getMemoData();
     const memo = data.memos.find(m => m.id === tabId);
@@ -1514,6 +1606,7 @@ function startEditTabName(tabId) {
     const tabElement = document.querySelector(`.memo-tab[data-memo-id="${tabId}"] .memo-tab-name`);
     if (!tabElement) return;
 
+    // 入力フィールドに変更
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'memo-tab-name editing';
@@ -1535,6 +1628,7 @@ function startEditTabName(tabId) {
     input.select();
 }
 
+// タブ名保存
 function saveTabName(tabId, newName) {
     const data = getMemoData();
     const memo = data.memos.find(m => m.id === tabId);
@@ -1545,6 +1639,7 @@ function saveTabName(tabId, newName) {
     renderMemoTabs();
 }
 
+// メモ帳の開閉
 function toggleMemoCollapse() {
     const data = getMemoData();
     const content = document.getElementById('memoContent');
@@ -1564,6 +1659,7 @@ function toggleMemoCollapse() {
 // ==================== グラフ機能 ====================
 let taskPieChart = null;
 
+// グラフの色パレット
 const chartColors = [
     '#FF6384',
     '#36A2EB',
@@ -1582,6 +1678,7 @@ const chartColors = [
     '#FF6E40',
 ];
 
+// 期間でログをフィルター
 function filterLogsByPeriod(logs, period) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1618,6 +1715,7 @@ function filterLogsByPeriod(logs, period) {
     }
 }
 
+// タスク別の合計時間を計算
 function calculateTaskTotals(logs) {
     const taskTotals = {};
 
@@ -1632,11 +1730,12 @@ function calculateTaskTotals(logs) {
     return taskTotals;
 }
 
+// 1%未満を「その他」にまとめる
 function groupSmallTasks(taskTotals) {
     const totalTime = Object.values(taskTotals).reduce((sum, time) => sum + time, 0);
     if (totalTime === 0) return { labels: [], data: [], totalTime: 0 };
 
-    const threshold = totalTime * 0.01;
+    const threshold = totalTime * 0.01; // 1%
     const result = {};
     let otherTime = 0;
 
@@ -1652,6 +1751,7 @@ function groupSmallTasks(taskTotals) {
         result['その他'] = otherTime;
     }
 
+    // 時間の降順でソート
     const sorted = Object.entries(result).sort((a, b) => b[1] - a[1]);
 
     return {
@@ -1661,6 +1761,7 @@ function groupSmallTasks(taskTotals) {
     };
 }
 
+// グラフの更新
 function updateChart() {
     const logs = getLogs();
     const periodSelect = document.getElementById('chartPeriod');
@@ -1675,6 +1776,7 @@ function updateChart() {
 
     if (!canvas) return;
 
+    // データがない場合
     if (data.length === 0) {
         canvas.style.display = 'none';
         if (noDataEl) noDataEl.style.display = 'block';
@@ -1689,12 +1791,15 @@ function updateChart() {
     canvas.style.display = 'block';
     if (noDataEl) noDataEl.style.display = 'none';
 
+    // 既存のグラフを破棄
     if (taskPieChart) {
         taskPieChart.destroy();
     }
 
+    // パーセンテージを計算
     const percentages = data.map(time => ((time / totalTime) * 100).toFixed(1));
 
+    // グラフ作成
     const ctx = canvas.getContext('2d');
     taskPieChart = new Chart(ctx, {
         type: 'pie',
@@ -1745,6 +1850,7 @@ function updateChart() {
                         meta.data.forEach((element, index) => {
                             const percentage = parseFloat(percentages[index]);
 
+                            // 5%以上のみラベル表示
                             if (percentage < 5) return;
 
                             const { x, y } = element.tooltipPosition();
@@ -1764,6 +1870,7 @@ function updateChart() {
     });
 }
 
+// 初期化時にグラフも更新
 function initializeChart() {
     updateChart();
 }
@@ -1771,6 +1878,7 @@ function initializeChart() {
 // ==================== タイムライン機能 ====================
 let timelineVisible = false;
 
+// タイムラインの表示/非表示切替
 function toggleTimeline() {
     timelineVisible = !timelineVisible;
     const content = document.getElementById('timelineContent');
@@ -1790,6 +1898,7 @@ function toggleTimeline() {
     }
 }
 
+// タイムラインの更新
 function updateTimeline() {
     const logs = getLogs();
     const periodSelect = document.getElementById('timelinePeriod');
@@ -1800,12 +1909,14 @@ function updateTimeline() {
     renderTimeline(filteredLogs, 'timelineContainer', false);
 }
 
+// タイムラインの描画
 function renderTimeline(logs, containerId, isModal) {
     const container = document.getElementById(containerId);
     const noDataEl = document.getElementById('timelineNoData');
 
     if (!container) return;
 
+    // データがない場合
     if (logs.length === 0) {
         container.innerHTML = '';
         if (noDataEl) noDataEl.style.display = 'block';
@@ -1814,17 +1925,22 @@ function renderTimeline(logs, containerId, isModal) {
 
     if (noDataEl) noDataEl.style.display = 'none';
 
+    // 時間順にソート
     const sortedLogs = [...logs].sort((a, b) => {
         return parseDateTime(a.startDateTime).getTime() - parseDateTime(b.startDateTime).getTime();
     });
 
+    // 時間範囲を計算
     const timeRange = calculateTimeRange(sortedLogs);
 
+    // バーの行を計算（重ならないように配置）
     const rows = assignRows(sortedLogs, timeRange);
     const rowCount = Math.max(...rows) + 1;
 
+    // 時間軸ラベルを生成
     const axisLabels = generateAxisLabels(timeRange);
 
+    // タイムラインHTMLを生成
     const rowHeight = isModal ? 44 : 40;
     const containerHeight = rowCount * rowHeight + 20;
 
@@ -1834,17 +1950,20 @@ function renderTimeline(logs, containerId, isModal) {
                 <div class="timeline-bars-container" style="height: ${containerHeight}px;">
     `;
 
+    // 各ログのバーを生成
     sortedLogs.forEach((log, index) => {
         const { left, width } = calculateBarPosition(log, timeRange);
         const row = rows[index];
         const top = row * rowHeight + 10;
         const color = getTaskColor(log.taskName);
 
+        // 表示テキスト: タスク内容詳細 > タスク名 > 「コメントなし」
         const displayText =
             log.taskDetail && log.taskDetail.trim()
                 ? log.taskDetail
                 : log.taskName || 'コメントなし';
 
+        // 幅が狭い場合は短縮表示
         const shortText = displayText.length > 10 ? displayText.substring(0, 8) + '…' : displayText;
         const showText = width > 5 ? displayText : shortText;
 
@@ -1868,15 +1987,18 @@ function renderTimeline(logs, containerId, isModal) {
         `;
     });
 
+    // timeline-bars-container を閉じる
     html += `
                 </div>
                 <div class="timeline-axis">
     `;
 
+    // 時間軸ラベルを追加
     axisLabels.forEach(label => {
         html += `<span class="timeline-axis-label" style="left: ${label.position}%;">${label.text}</span>`;
     });
 
+    // 全てのタグを閉じる
     html += `
                 </div>
             </div>
@@ -1886,14 +2008,16 @@ function renderTimeline(logs, containerId, isModal) {
     container.innerHTML = html;
 }
 
+// バーの行を割り当て（重ならないように）
 function assignRows(logs, _timeRange) {
     const rows = [];
-    const rowEndTimes = [];
+    const rowEndTimes = []; // 各行の終了時刻を記録
 
     logs.forEach(log => {
         const startTime = parseDateTime(log.startDateTime).getTime();
         const endTime = parseDateTime(log.endDateTime).getTime();
 
+        // 空いている行を探す
         let assignedRow = -1;
         for (let i = 0; i < rowEndTimes.length; i++) {
             if (rowEndTimes[i] <= startTime) {
@@ -1902,6 +2026,7 @@ function assignRows(logs, _timeRange) {
             }
         }
 
+        // 空いている行がなければ新しい行を追加
         if (assignedRow === -1) {
             assignedRow = rowEndTimes.length;
             rowEndTimes.push(0);
@@ -1914,6 +2039,7 @@ function assignRows(logs, _timeRange) {
     return rows;
 }
 
+// 時間範囲を計算
 function calculateTimeRange(logs) {
     let minTime = Infinity;
     let maxTime = -Infinity;
@@ -1926,6 +2052,7 @@ function calculateTimeRange(logs) {
         maxTime = Math.max(maxTime, endTime);
     });
 
+    // 前後に余裕を持たせる（前後10分）
     const padding = 10 * 60 * 1000;
     minTime -= padding;
     maxTime += padding;
@@ -1933,6 +2060,7 @@ function calculateTimeRange(logs) {
     return { minTime, maxTime, duration: maxTime - minTime };
 }
 
+// 日時文字列をDateオブジェクトに変換
 // 日時文字列をDateオブジェクトに変換
 function parseDateTime(dateTimeStr) {
     if (!dateTimeStr || typeof dateTimeStr !== 'string') {
@@ -2186,10 +2314,11 @@ function restoreTimer() {
     const endTime = new Date(saved.endTime);
     const now = new Date();
     const remainingMs = endTime.getTime() - now.getTime();
-    console.log('残り時間(ms):', remainingMs);
+    console.log('残り時間(ms):', remainingMs); // 追加
 
+    // 既に終了している場合
     if (remainingMs <= 0) {
-        console.log('タイマー既に終了');
+        console.log('タイマー既に終了'); // 追加
         clearTimerState();
         return false;
     }
