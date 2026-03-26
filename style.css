@@ -138,6 +138,22 @@ h2 {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.sync-file-link {
+    margin-bottom: 1rem;
+    color: #666;
+    font-size: 0.95rem;
+    word-break: break-all;
+}
+
+.sync-file-link a {
+    color: #0b6fa4;
+    text-decoration: underline;
+}
+
+.sync-file-link a:hover {
+    color: #08567d;
+}
+
 .task-table {
     width: 100%;
     border-collapse: collapse;
